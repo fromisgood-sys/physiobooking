@@ -73,14 +73,15 @@ export default async function Home() {
             <p className="mt-6 max-w-sm text-[15px] leading-6 text-ink-soft">
               Book a 45-minute session with a physiotherapist you trust. Takes a few clicks.
             </p>
-            <form action={signInWithGoogle} className="mt-8">
-              <button
-                type="submit"
-                className="flex h-11 items-center justify-center rounded-full bg-azure px-6 text-[15px] font-medium text-white transition-colors duration-150 ease-out hover:bg-azure-hover"
-              >
-                Sign in with Google
-              </button>
-            </form>
+            <Link
+              href="/book"
+              className="mt-8 flex h-11 items-center justify-center rounded-full bg-azure px-6 text-[15px] font-medium text-white transition-colors duration-150 ease-out hover:bg-azure-hover"
+            >
+              Browse physiotherapists
+            </Link>
+            <p className="mt-3 text-[13px] text-ink-muted">
+              No account needed to look &mdash; only to book.
+            </p>
 
             <div className="mt-16 w-full max-w-[880px]">
               <BrowserFrame>
@@ -206,14 +207,12 @@ export default async function Home() {
             <h2 className="max-w-md text-[32px] font-bold leading-[38px] tracking-[-0.025em] text-white">
               Ready when you are.
             </h2>
-            <form action={signInWithGoogle} className="mt-8">
-              <button
-                type="submit"
-                className="flex h-11 items-center justify-center rounded-btn bg-white px-6 text-[15px] font-medium text-azure transition-colors duration-150 ease-out hover:bg-white/90"
-              >
-                Sign in with Google
-              </button>
-            </form>
+            <Link
+              href="/book"
+              className="mt-8 flex h-11 items-center justify-center rounded-btn bg-white px-6 text-[15px] font-medium text-azure transition-colors duration-150 ease-out hover:bg-white/90"
+            >
+              Browse physiotherapists
+            </Link>
           </div>
         </section>
       </main>

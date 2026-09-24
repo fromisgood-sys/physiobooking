@@ -46,6 +46,9 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
+// /book is intentionally not gated here — anyone can browse physiotherapists
+// and time slots without signing in; sign-in is required only at the
+// confirm step, checked there directly (app/(app)/book/[physioId]/confirm).
 export const config = {
-  matcher: ["/book/:path*", "/appointments/:path*", "/admin/:path*"],
+  matcher: ["/appointments/:path*", "/admin/:path*"],
 };

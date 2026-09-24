@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { signOut } from "@/app/actions/auth";
+import { signOut, signInWithGoogle } from "@/app/actions/auth";
 import { NavLinks } from "@/components/layout/NavLinks";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -25,31 +25,44 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="flex items-center gap-3">
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={avatarUrl}
-                alt=""
-                className="h-8 w-8 rounded-full border border-line object-cover"
-              />
+            {user ? (
+              <>
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarUrl}
+                    alt=""
+                    className="h-8 w-8 rounded-full border border-line object-cover"
+                  />
+                ) : (
+                  name && (
+                    <div
+                      aria-hidden="true"
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-azure-soft text-[13px] font-semibold text-azure-hover"
+                    >
+                      {initial}
+                    </div>
+                  )
+                )}
+                <form action={signOut}>
+                  <button
+                    type="submit"
+                    className="text-[15px] font-medium text-ink-soft transition-colors duration-150 ease-out hover:text-ink"
+                  >
+                    Sign out
+                  </button>
+                </form>
+              </>
             ) : (
-              name && (
-                <div
-                  aria-hidden="true"
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-azure-soft text-[13px] font-semibold text-azure-hover"
+              <form action={signInWithGoogle}>
+                <button
+                  type="submit"
+                  className="flex h-10 items-center justify-center rounded-btn border border-line-strong bg-paper px-4 text-[15px] font-medium text-ink transition-colors duration-150 ease-out hover:bg-paper-tint"
                 >
-                  {initial}
-                </div>
-              )
+                  Sign in
+                </button>
+              </form>
             )}
-            <form action={signOut}>
-              <button
-                type="submit"
-                className="text-[15px] font-medium text-ink-soft transition-colors duration-150 ease-out hover:text-ink"
-              >
-                Sign out
-              </button>
-            </form>
           </div>
         </div>
       </header>

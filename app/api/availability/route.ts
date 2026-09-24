@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { fromZonedTime } from "date-fns-tz";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSlots } from "@/lib/slots";
 import { CLINIC_TZ } from "@/lib/tz";
@@ -11,16 +10,10 @@ const querySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
+// Intentionally public — browsing available times doesn't require sign-in
+// (only creating a booking does, in POST /api/appointments). Only ever
+// returns the derived free-slot list, never appointment rows.
 export async function GET(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { searchParams } = new URL(request.url);
   const parsed = querySchema.safeParse({
     physioId: searchParams.get("physioId"),
