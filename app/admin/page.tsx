@@ -1,5 +1,6 @@
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
+import { CalendarDays, CalendarRange, CalendarX2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { CLINIC_TZ } from "@/lib/tz";
 import { StatTile } from "@/components/admin/StatTile";
@@ -63,9 +64,13 @@ export default async function AdminDashboardPage() {
       </h1>
 
       <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-3">
-        <StatTile label="Appointments today" value={todayCount ?? 0} />
-        <StatTile label="Appointments this week" value={weekCount ?? 0} />
-        <StatTile label="Cancellations this month" value={cancelledThisMonth ?? 0} />
+        <StatTile label="Appointments today" value={todayCount ?? 0} icon={CalendarDays} />
+        <StatTile label="Appointments this week" value={weekCount ?? 0} icon={CalendarRange} />
+        <StatTile
+          label="Cancellations this month"
+          value={cancelledThisMonth ?? 0}
+          icon={CalendarX2}
+        />
       </div>
 
       <h2 className="mt-12 text-[18px] font-semibold leading-6 tracking-[-0.01em] text-ink">

@@ -40,7 +40,7 @@ export function AppointmentCard({ appointment, upcoming, onChanged }: Appointmen
   const physio = appointment.physiotherapists;
 
   return (
-    <div className="flex flex-col gap-3 rounded-card border border-line bg-paper p-5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-card border border-line bg-paper p-5 transition-colors duration-150 ease-out hover:border-line-strong sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-[18px] font-semibold leading-6 tracking-[-0.01em] text-ink">
           {physio?.full_name ?? "Physiotherapist"}

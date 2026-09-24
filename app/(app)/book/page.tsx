@@ -1,3 +1,4 @@
+import { UserRoundX } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { PhysioCard } from "@/components/booking/PhysioCard";
 
@@ -25,9 +26,10 @@ export default async function BookPage() {
       )}
 
       {!error && physiotherapists?.length === 0 && (
-        <p className="mt-10 text-[15px] text-ink-soft">
-          No physiotherapists are available right now.
-        </p>
+        <div className="mt-10 flex flex-col items-center gap-3 rounded-card border border-line bg-paper-tint px-6 py-16 text-center">
+          <UserRoundX className="h-8 w-8 text-ink-muted" aria-hidden="true" />
+          <p className="text-[15px] text-ink-soft">No physiotherapists are available right now.</p>
+        </div>
       )}
 
       {!error && physiotherapists && physiotherapists.length > 0 && (

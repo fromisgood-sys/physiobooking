@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Check } from "lucide-react";
 
 export default async function BookingSuccessPage({
   searchParams,
@@ -9,7 +10,11 @@ export default async function BookingSuccessPage({
 
   return (
     <main className="mx-auto flex w-full max-w-[1120px] flex-1 flex-col items-center px-6 py-16 text-center">
-      <p className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-muted">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-state-ok-soft">
+        <Check className="h-7 w-7 text-state-ok" strokeWidth={2.5} aria-hidden="true" />
+      </div>
+
+      <p className="mt-6 text-xs font-semibold uppercase tracking-[0.06em] text-ink-muted">
         Booking reference
       </p>
       <p className="mt-1 text-[32px] font-bold leading-[38px] tracking-[-0.025em] text-ink">

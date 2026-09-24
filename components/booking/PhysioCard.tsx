@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 export interface PhysioCardProps {
   id: string;
@@ -17,7 +18,7 @@ export function PhysioCard({ id, fullName, specialisation, bio, photoUrl }: Phys
     .toUpperCase();
 
   return (
-    <div className="flex flex-col gap-4 rounded-card border border-line bg-paper p-6">
+    <div className="flex flex-col gap-4 rounded-card border border-line bg-paper p-6 transition-colors duration-150 ease-out hover:border-line-strong">
       <div className="flex items-center gap-4">
         {photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -50,9 +51,13 @@ export function PhysioCard({ id, fullName, specialisation, bio, photoUrl }: Phys
 
       <Link
         href={`/book/${id}`}
-        className="mt-auto flex h-11 items-center justify-center rounded-btn border border-line-strong bg-paper text-[15px] font-medium text-ink transition-colors duration-150 ease-out hover:bg-paper-tint"
+        className="group/select mt-auto flex h-11 items-center justify-center gap-1.5 rounded-btn border border-line-strong bg-paper text-[15px] font-medium text-ink transition-colors duration-150 ease-out hover:bg-paper-tint"
       >
         Select
+        <ArrowRight
+          className="h-4 w-4 transition-transform duration-150 ease-out group-hover/select:translate-x-0.5"
+          aria-hidden="true"
+        />
       </Link>
     </div>
   );

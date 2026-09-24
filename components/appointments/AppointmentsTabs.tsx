@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CalendarX2 } from "lucide-react";
 import { AppointmentCard, type AppointmentRow } from "./AppointmentCard";
 
 export interface AppointmentsTabsProps {
@@ -46,9 +47,12 @@ export function AppointmentsTabs({ initialUpcoming, initialPast }: AppointmentsT
 
       <div className="mt-6 flex flex-col gap-4">
         {rows.length === 0 && (
-          <p className="text-[15px] text-ink-soft">
-            {tab === "upcoming" ? "No upcoming appointments." : "No past appointments yet."}
-          </p>
+          <div className="flex flex-col items-center gap-3 rounded-card border border-line bg-paper-tint px-6 py-16 text-center">
+            <CalendarX2 className="h-8 w-8 text-ink-muted" aria-hidden="true" />
+            <p className="text-[15px] text-ink-soft">
+              {tab === "upcoming" ? "No upcoming appointments." : "No past appointments yet."}
+            </p>
+          </div>
         )}
         {rows.map((a) => (
           <AppointmentCard
