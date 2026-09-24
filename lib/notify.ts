@@ -1,4 +1,5 @@
 import "server-only";
+import nodemailer from "nodemailer";
 
 export type NotifyEvent = "booking_created" | "rescheduled" | "cancelled" | "admin_edit";
 
@@ -21,6 +22,29 @@ export interface NotifyAppointmentParams {
 
 const FORMSPREE_ENDPOINT = process.env.FORMSPREE_ENDPOINT;
 const RECEPTION_EMAIL = process.env.RECEPTION_EMAIL;
+// Free per-recipient email: any SMTP account (e.g. Gmail + app password).
+// Formspree only ever emails its own account owner, so it is a fallback only.
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
+const SMTP_HOST = process.env.SMTP_HOST ?? "smtp.gmail.com";
+const SMTP_PORT = Number(process.env.SMTP_PORT ?? 465);
+const SMTP_FROM = process.env.SMTP_FROM ?? SMTP_USER;
+
+async function sendSmtp(to: string, subject: string, text: string): Promise<boolean> {
+  try {
+    const transport = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465,
+      auth: { user: SMTP_USER, pass: SMTP_PASSWORD },
+    });
+    await transport.sendMail({ from: `Physio Booking <${SMTP_FROM}>`, to, subject, text });
+    return true;
+  } catch (err) {
+    console.warn("[notify] SMTP send failed", to, err);
+    return false;
+  }
+}
 
 const EVENT_VERB: Record<NotifyEvent, string> = {
   booking_created: "confirmed",
@@ -79,6 +103,22 @@ export async function notifyAppointment(params: NotifyAppointmentParams): Promis
       status: params.status,
       message,
     };
+
+    if (SMTP_USER && SMTP_PASSWORD) {
+      const details = [
+        message,
+        "",
+        `Patient: ${params.patientName} (${params.patientEmail}, ${params.patientPhone})`,
+        `Physiotherapist: ${params.physiotherapistName}`,
+        `When: ${params.date}, ${params.startTime}-${params.endTime}`,
+        params.reasonForVisit ? `Reason: ${params.reasonForVisit}` : "",
+      ]
+        .join("\n");
+      if (params.patientEmail) await sendSmtp(params.patientEmail, subject, details);
+      if (RECEPTION_EMAIL) await sendSmtp(RECEPTION_EMAIL, subject, details);
+      else console.warn("[notify] RECEPTION_EMAIL not set — skipping reception copy");
+      return;
+    }
 
     await postToFormspree({ ...basePayload, recipient: params.patientEmail });
 

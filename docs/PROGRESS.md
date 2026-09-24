@@ -52,3 +52,5 @@ See `DECISIONS.md` at project root.
 - [2/4] Admin spec gaps: sortable table columns UI, admin creates a booking, change physiotherapist in Edit.
 - [3/4] Client split view: doctors list left, weekly availability calendar right, no page change.
 - [4/4] Remaining spec gaps: calendar retry flag, calendar status on success screen, toast warnings, overlap tests.
+
+- Email: Formspree only emails its account owner (per-recipient is paid). `lib/notify.ts` now sends via SMTP (nodemailer) when `SMTP_USER`/`SMTP_PASSWORD` are set; falls back to Formspree otherwise. Calendar failure on prod still undiagnosed (needs Vercel log line).
