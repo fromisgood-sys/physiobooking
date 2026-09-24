@@ -1,0 +1,248 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --azure: #4B7BF5;
+  --azure-hover: #3A66DC;
+  --azure-soft: #E8EEFE;
+  --azure-ring: #B9CCFB;
+
+  --lime: #D6F24B;
+  --lime-ink: #1F2A0A;
+  --lime-soft: #F4F9DC;
+
+  --carbon: #101215;
+  --carbon-raised: #1C1F24;
+  --carbon-line: #2C3037;
+
+  --paper: #FFFFFF;
+  --paper-tint: #F4F7FE;
+  --paper-sunk: #EDF1F7;
+
+  --ink: #0E1116;
+  --ink-soft: #4A515C;
+  --ink-muted: #8A929E;
+
+  --line: #E3E8F0;
+  --line-strong: #CBD3E0;
+
+  --state-ok: #2E7D52;
+  --state-ok-soft: #E3F2EA;
+  /* Darkened from DESIGN.md's #B0791B — that value is ~3.75:1 on white as
+     normal-size text, below the AA 4.5:1 the same file requires. Same hue. */
+  --state-warn: #8F5F13;
+  --state-warn-soft: #FBF0DA;
+  --state-danger: #C23434;
+  --state-danger-soft: #FBE4E3;
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--azure);
+  --primary-foreground: #FFFFFF;
+  --secondary: var(--paper);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-sunk);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--azure-soft);
+  --accent-foreground: var(--ink);
+  --destructive: var(--state-danger);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--azure-ring);
+  --radius: 10px;
+  --chart-1: var(--azure);
+  --chart-2: var(--lime);
+  --chart-3: var(--state-ok);
+  --chart-4: var(--state-warn);
+  --chart-5: var(--state-danger);
+  --sidebar: var(--carbon);
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: var(--azure);
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: var(--carbon-raised);
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: var(--carbon-line);
+  --sidebar-ring: var(--azure-ring);
+}
+
+.dark {
+  --azure: #6E95F7;
+  --azure-hover: #86A6F9;
+  --azure-soft: #1C2333;
+  --azure-ring: #3A4A7A;
+
+  --paper: #101215;
+  --paper-tint: #16191E;
+  --paper-sunk: #1C1F24;
+
+  --ink: #F4F6F9;
+  --ink-soft: #B7BEC9;
+  --ink-muted: #7A828E;
+
+  --line: #2C3037;
+  --line-strong: #3A3F47;
+
+  --state-ok: #4CAF77;
+  --state-ok-soft: #16301F;
+  --state-warn: #D69A3D;
+  --state-warn-soft: #2E210A;
+  --state-danger: #E2685F;
+  --state-danger-soft: #341614;
+  --lime-soft: #242A0F;
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--carbon-raised);
+  --card-foreground: var(--ink);
+  --popover: var(--carbon-raised);
+  --popover-foreground: var(--ink);
+  --primary: var(--azure);
+  --primary-foreground: #0E1116;
+  --secondary: var(--carbon-raised);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-sunk);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--azure-soft);
+  --accent-foreground: var(--ink);
+  --destructive: var(--state-danger);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--azure-ring);
+  --chart-1: var(--azure);
+  --chart-2: var(--lime);
+  --chart-3: var(--state-ok);
+  --chart-4: var(--state-warn);
+  --chart-5: var(--state-danger);
+  --sidebar: var(--carbon);
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: var(--azure);
+  --sidebar-primary-foreground: #0E1116;
+  --sidebar-accent: var(--carbon-raised);
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: var(--carbon-line);
+  --sidebar-ring: var(--azure-ring);
+}
+
+@theme inline {
+  --color-azure: var(--azure);
+  --color-azure-hover: var(--azure-hover);
+  --color-azure-soft: var(--azure-soft);
+  --color-azure-ring: var(--azure-ring);
+
+  --color-lime: var(--lime);
+  --color-lime-ink: var(--lime-ink);
+  --color-lime-soft: var(--lime-soft);
+
+  --color-carbon: var(--carbon);
+  --color-carbon-raised: var(--carbon-raised);
+  --color-carbon-line: var(--carbon-line);
+
+  --color-paper: var(--paper);
+  --color-paper-tint: var(--paper-tint);
+  --color-paper-sunk: var(--paper-sunk);
+
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-muted: var(--ink-muted);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-state-ok: var(--state-ok);
+  --color-state-ok-soft: var(--state-ok-soft);
+  --color-state-warn: var(--state-warn);
+  --color-state-warn-soft: var(--state-warn-soft);
+  --color-state-danger: var(--state-danger);
+  --color-state-danger-soft: var(--state-danger-soft);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: var(--font-plus-jakarta);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-btn: 10px;
+  --radius-card: 16px;
+  --radius-block: 24px;
+
+  --shadow-float: 0 2px 8px rgba(14, 17, 22, 0.06);
+}
+
+body {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+
+  /* DESIGN.md: full keyboard path with a visible 2px azure.ring focus ring,
+     applied everywhere rather than per-component so nothing is missed. */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role="tab"]:focus-visible,
+  [role="option"]:focus-visible {
+    outline: 2px solid var(--azure-ring);
+    outline-offset: 2px;
+  }
+}
