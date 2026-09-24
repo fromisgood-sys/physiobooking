@@ -1,29 +1,35 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { UserRound, Clock3, RotateCcw, CalendarClock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { signInWithGoogle } from "@/app/actions/auth";
+import { BrowserFrame } from "@/components/marketing/BrowserFrame";
 
 const FEATURES = [
   {
+    icon: UserRound,
     title: "Choose your physiotherapist",
     body: "Browse real profiles and specialisations, then pick who you'd like to see. You can change your mind next time.",
-    accent: true,
+    tone: "lime" as const,
   },
   {
+    icon: Clock3,
     title: "Pick a time that works",
     body: "A live day strip and time grid show only genuinely free 45-minute slots — nothing double-booked, nothing stale.",
-    accent: false,
+    tone: "dark" as const,
   },
   {
+    icon: RotateCcw,
     title: "Manage it yourself",
     body: "Reschedule or cancel from your own appointments page, any time before your session starts. No phone call needed.",
-    accent: false,
+    tone: "dark" as const,
   },
   {
+    icon: CalendarClock,
     title: "Synced to your calendar",
     body: "Every booking creates a Google Calendar event automatically, with reminders, so it's never just an email you forget.",
-    accent: true,
+    tone: "azure" as const,
   },
 ];
 
@@ -76,15 +82,17 @@ export default async function Home() {
               </button>
             </form>
 
-            <div className="mt-16 w-full max-w-[880px] overflow-hidden rounded-block border border-line shadow-[var(--shadow-float)]">
-              <Image
-                src="/screenshots/physio-chooser.png"
-                alt="The physiotherapist chooser screen in Physio Booking, showing four real physiotherapist profiles"
-                width={1024}
-                height={720}
-                className="w-full"
-                priority
-              />
+            <div className="mt-16 w-full max-w-[880px]">
+              <BrowserFrame>
+                <Image
+                  src="/screenshots/physio-chooser.png"
+                  alt="The physiotherapist chooser screen in Physio Booking, showing four real physiotherapist profiles"
+                  width={1024}
+                  height={720}
+                  className="w-full"
+                  priority
+                />
+              </BrowserFrame>
             </div>
           </div>
         </section>
@@ -129,25 +137,39 @@ export default async function Home() {
             </h2>
 
             <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {FEATURES.map((f) => (
-                <div
-                  key={f.title}
-                  className={`rounded-card p-6 ${
-                    f.accent ? "bg-azure" : "bg-carbon-raised border border-carbon-line"
-                  }`}
-                >
-                  <p className="text-[18px] font-semibold leading-6 tracking-[-0.01em] text-white">
-                    {f.title}
-                  </p>
-                  <p
-                    className={`mt-2 text-[15px] leading-6 ${
-                      f.accent ? "text-white/85" : "text-white/70"
-                    }`}
-                  >
-                    {f.body}
-                  </p>
-                </div>
-              ))}
+              {FEATURES.map((f) => {
+                const Icon = f.icon;
+                const cardClass =
+                  f.tone === "lime"
+                    ? "bg-lime"
+                    : f.tone === "azure"
+                      ? "bg-azure"
+                      : "bg-carbon-raised border border-carbon-line";
+                const iconWrapClass =
+                  f.tone === "lime" ? "bg-lime-ink/10" : "bg-white/10";
+                const iconClass = f.tone === "lime" ? "text-lime-ink" : "text-white";
+                const titleClass = f.tone === "lime" ? "text-lime-ink" : "text-white";
+                const bodyClass =
+                  f.tone === "lime"
+                    ? "text-lime-ink/80"
+                    : f.tone === "azure"
+                      ? "text-white/85"
+                      : "text-white/70";
+
+                return (
+                  <div key={f.title} className={`rounded-card p-6 ${cardClass}`}>
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-btn ${iconWrapClass}`}
+                    >
+                      <Icon className={`h-5 w-5 ${iconClass}`} strokeWidth={2} aria-hidden="true" />
+                    </div>
+                    <p className={`mt-4 text-[18px] font-semibold leading-6 tracking-[-0.01em] ${titleClass}`}>
+                      {f.title}
+                    </p>
+                    <p className={`mt-2 text-[15px] leading-6 ${bodyClass}`}>{f.body}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -164,14 +186,16 @@ export default async function Home() {
                 already-booked times are never shown as available.
               </p>
             </div>
-            <div className="w-full max-w-[520px] overflow-hidden rounded-block border border-line shadow-[var(--shadow-float)]">
-              <Image
-                src="/screenshots/slot-picker.png"
-                alt="The day and time picker in Physio Booking, showing available 45-minute slots for a physiotherapist"
-                width={1024}
-                height={620}
-                className="w-full"
-              />
+            <div className="w-full max-w-[520px]">
+              <BrowserFrame>
+                <Image
+                  src="/screenshots/slot-picker.png"
+                  alt="The day and time picker in Physio Booking, showing available 45-minute slots for a physiotherapist"
+                  width={1024}
+                  height={620}
+                  className="w-full"
+                />
+              </BrowserFrame>
             </div>
           </div>
         </section>
