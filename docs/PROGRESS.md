@@ -46,3 +46,9 @@
 
 ## Decisions made this session
 See `DECISIONS.md` at project root.
+
+## Redesign track (2026-09-24, in flight)
+- [1/4] Admin shell (light rounded container + pill nav) and weekly calendar view (`AdminCalendar`, Calendar/Table toggle) — done, build + 24 tests pass.
+- [2/4] Admin spec gaps: sortable table columns UI, admin creates a booking, change physiotherapist in Edit.
+- [3/4] Client split view: doctors list left, weekly availability calendar right, no page change.
+- [4/4] Remaining spec gaps: calendar retry flag, calendar status on success screen, toast warnings, overlap tests.

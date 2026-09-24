@@ -17,8 +17,10 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const page = Math.max(1, Number(searchParams.get("page") ?? 1) || 1);
-  const from = (page - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
+  // `all=1` returns up to 500 rows unpaginated — used by the calendar view.
+  const all = searchParams.get("all") === "1";
+  const from = all ? 0 : (page - 1) * PAGE_SIZE;
+  const to = all ? 499 : from + PAGE_SIZE - 1;
   const filters = parseAdminAppointmentFilters(searchParams);
   const { sortBy, ascending } = parseAdminSort(searchParams);
 
