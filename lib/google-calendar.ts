@@ -3,7 +3,7 @@ import { createAdminClient } from "./supabase/admin";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
-const CALENDAR_EVENTS_URL = "https://www.googleapis.com/calendar/v3/events";
+const CALENDAR_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
 
 export interface CalendarEventInput {
   physiotherapistName: string;
@@ -67,6 +67,7 @@ async function getValidAccessToken(userId: string): Promise<string | null> {
     });
 
     if (!res.ok) {
+      console.warn("[google-calendar] token refresh failed", res.status);
       if (res.status === 400 || res.status === 401) {
         // Refresh token revoked or invalid — clear it so the user is
         // prompted to reconnect their calendar on next sign-in.
