@@ -16,9 +16,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex flex-1 flex-col">
       <header className="border-b border-line bg-paper">
-        <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-6 px-6 py-4">
-          <div className="flex items-center gap-8">
-            <Link href="/book" className="text-[15px] font-bold tracking-[-0.01em] text-ink">
+        <div className="mx-auto flex w-full max-w-[1200px] items-center justify-between gap-3 px-4 py-4 sm:gap-6 sm:px-6">
+          <div className="flex items-center gap-4 sm:gap-8">
+            <Link href="/book" className="whitespace-nowrap text-[15px] font-bold tracking-[-0.01em] text-ink">
               Physio Booking
             </Link>
             <NavLinks />
@@ -32,13 +32,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   <img
                     src={avatarUrl}
                     alt=""
-                    className="h-8 w-8 rounded-full border border-line object-cover"
+                    className="hidden h-8 w-8 rounded-full border border-line object-cover sm:block"
                   />
                 ) : (
                   name && (
                     <div
                       aria-hidden="true"
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-azure-soft text-[13px] font-semibold text-azure-hover"
+                      className="hidden h-8 w-8 items-center justify-center rounded-full bg-azure-soft sm:flex text-[13px] font-semibold text-azure-hover"
                     >
                       {initial}
                     </div>
@@ -47,7 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <form action={signOut}>
                   <button
                     type="submit"
-                    className="text-[15px] font-medium text-ink-soft transition-colors duration-150 ease-out hover:text-ink"
+                    className="whitespace-nowrap text-[15px] font-medium text-ink-soft transition-colors duration-150 ease-out hover:text-ink"
                   >
                     Sign out
                   </button>

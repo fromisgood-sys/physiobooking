@@ -54,3 +54,5 @@ See `DECISIONS.md` at project root.
 - [4/4] Remaining spec gaps: calendar retry flag, calendar status on success screen, toast warnings, overlap tests.
 
 - Email: Formspree only emails its account owner (per-recipient is paid). `lib/notify.ts` now sends via SMTP (nodemailer) when `SMTP_USER`/`SMTP_PASSWORD` are set; falls back to Formspree otherwise. Calendar failure on prod still undiagnosed (needs Vercel log line).
+
+- Redesign: /book is now one split screen (BookingWorkspace: doctors left, profile + month calendar + 45-min slots + Book bar right; mobile = doctor strip on top). Times still come from lib/slots via /api/availability. Top bar kept for all screens (mockup sidebars ignored). Next: confirm slide-over, appointments, reschedule dialog, then admin screens.
