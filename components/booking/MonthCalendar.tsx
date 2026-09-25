@@ -34,6 +34,24 @@ export function MonthCalendar({
   const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
   const firstWeekday = weekdayOfDateLabel(`${viewYear}-${pad(viewMonth)}-01`);
   const leadingBlanks = (firstWeekday + 6) % 7;
+  const trailing = (7 - ((leadingBlanks + daysInMonth) % 7)) % 7;
+  const prevMonthDays = new Date(viewYear, viewMonth - 1, 0).getDate();
+  const cells = [
+    ...Array.from({ length: leadingBlanks }, (_, i) => {
+      const day = prevMonthDays - leadingBlanks + 1 + i;
+      return { date: `prev-${day}`, day, inMonth: false };
+    }),
+    ...Array.from({ length: daysInMonth }, (_, i) => ({
+      date: `${viewYear}-${pad(viewMonth)}-${pad(i + 1)}`,
+      day: i + 1,
+      inMonth: true,
+    })),
+    ...Array.from({ length: trailing }, (_, i) => ({
+      date: `next-${i + 1}`,
+      day: i + 1,
+      inMonth: false,
+    })),
+  ];
 
   const monthLabel = new Date(viewYear, viewMonth - 1, 1).toLocaleDateString("en-GB", {
     month: "long",
@@ -58,7 +76,7 @@ export function MonthCalendar({
         >
           <ChevronLeft className="h-5 w-5" aria-hidden="true" />
         </button>
-        <p className="text-[17px] font-semibold text-ink" aria-live="polite">
+        <p className="text-[22px] font-semibold text-ink" aria-live="polite">
           {monthLabel}
         </p>
         <button
@@ -71,7 +89,7 @@ export function MonthCalendar({
         </button>
       </div>
 
-      <div className="mt-2 grid grid-cols-7 text-center text-[13px] font-medium text-ink-muted">
+      <div className="mt-3 grid grid-cols-7 text-center text-[16px] font-medium text-ink-soft">
         {HEADINGS.map((h) => (
           <span key={h} className="py-2">
             {h}
@@ -80,33 +98,40 @@ export function MonthCalendar({
       </div>
 
       <div className="grid grid-cols-7 gap-y-1" role="listbox" aria-label="Choose a date">
-        {Array.from({ length: leadingBlanks }).map((_, i) => (
-          <span key={`blank-${i}`} aria-hidden="true" />
-        ))}
-        {Array.from({ length: daysInMonth }, (_, i) => {
-          const day = i + 1;
-          const date = `${viewYear}-${pad(viewMonth)}-${pad(day)}`;
-          const bookable = date >= todayLabel && availableWeekdays.includes(weekdayOfDateLabel(date));
-          const selected = date === selectedDate;
+        {cells.map((cell) => {
+          if (!cell.inMonth) {
+            return (
+              <span
+                key={cell.date}
+                aria-hidden="true"
+                className="mx-auto flex h-12 w-12 items-center justify-center text-[18px] tabular-nums text-ink-muted/35"
+              >
+                {cell.day}
+              </span>
+            );
+          }
+          const bookable =
+            cell.date >= todayLabel && availableWeekdays.includes(weekdayOfDateLabel(cell.date));
+          const selected = cell.date === selectedDate;
 
           return (
             <button
-              key={date}
+              key={cell.date}
               type="button"
               role="option"
               aria-selected={selected}
               aria-disabled={!bookable}
               disabled={!bookable}
-              onClick={() => onSelect(date)}
-              className={`mx-auto flex h-11 w-11 items-center justify-center rounded-btn text-[15px] tabular-nums transition-colors duration-150 ease-out ${
+              onClick={() => onSelect(cell.date)}
+              className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full text-[18px] tabular-nums transition-colors duration-150 ease-out ${
                 selected
                   ? "bg-azure font-semibold text-white"
                   : bookable
                     ? "font-medium text-ink hover:bg-azure-soft"
-                    : "text-ink-muted/40"
+                    : "text-ink-muted/35"
               }`}
             >
-              {day}
+              {cell.day}
             </button>
           );
         })}

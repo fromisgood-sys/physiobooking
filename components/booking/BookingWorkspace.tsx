@@ -28,7 +28,16 @@ function initialsOf(name: string): string {
     .toUpperCase();
 }
 
-function Avatar({ physio, size }: { physio: WorkspacePhysio; size: number }) {
+function Avatar({
+  physio,
+  size,
+  square = false,
+}: {
+  physio: WorkspacePhysio;
+  size: number;
+  square?: boolean;
+}) {
+  const shape = square ? "rounded-[16px]" : "rounded-full";
   const style = { width: size, height: size };
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   return physio.photoUrl && failedUrl !== physio.photoUrl ? (
@@ -38,13 +47,13 @@ function Avatar({ physio, size }: { physio: WorkspacePhysio; size: number }) {
       alt=""
       style={style}
       onError={() => setFailedUrl(physio.photoUrl)}
-      className="shrink-0 rounded-full object-cover"
+      className={`shrink-0 ${shape} object-cover`}
     />
   ) : (
     <div
       aria-hidden="true"
       style={style}
-      className="flex shrink-0 items-center justify-center rounded-full bg-azure-soft text-[15px] font-semibold text-azure-hover"
+      className={`flex shrink-0 items-center justify-center ${shape} bg-azure-soft text-[15px] font-semibold text-azure-hover`}
     >
       {initialsOf(physio.fullName)}
     </div>
@@ -119,31 +128,37 @@ export function BookingWorkspace({
   });
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
-      <aside className="min-w-0 rounded-card border border-line bg-paper p-3 lg:p-4">
-        <h1 className="px-2 pb-2 pt-2 text-[24px] font-bold leading-[30px] tracking-[-0.02em] text-ink lg:px-3">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
+      <aside className="min-w-0 rounded-card bg-paper p-4 lg:p-5">
+        <h1 className="max-w-[240px] px-2 pb-4 pt-3 text-[32px] font-bold leading-[38px] tracking-[-0.025em] text-ink lg:px-3">
           Choose a physiotherapist
         </h1>
-        <ul className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
-          {physios.map((p) => {
+        <ul className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:gap-0 lg:overflow-visible lg:pb-0">
+          {physios.map((p, i) => {
             const active = p.id === physio.id;
+            const prevActive = i > 0 && physios[i - 1].id === physio.id;
             return (
-              <li key={p.id} className="shrink-0 lg:shrink">
+              <li
+                key={p.id}
+                className={`shrink-0 lg:shrink ${
+                  i > 0 && !active && !prevActive ? "lg:border-t lg:border-line" : ""
+                }`}
+              >
                 <button
                   type="button"
                   aria-pressed={active}
                   onClick={() => choosePhysio(p)}
-                  className={`flex min-h-[64px] w-full items-center gap-3 rounded-btn px-3 py-2.5 text-left transition-colors duration-150 ease-out ${
+                  className={`flex min-h-[88px] w-full items-center gap-4 rounded-[14px] px-3 py-3 text-left transition-colors duration-150 ease-out ${
                     active ? "bg-azure text-white" : "text-ink hover:bg-paper-tint"
                   }`}
                 >
-                  <Avatar physio={p} size={48} />
+                  <Avatar physio={p} size={64} />
                   <span className="min-w-0">
-                    <span className="block text-[16px] font-semibold leading-5">{p.fullName}</span>
+                    <span className="block text-[17px] font-semibold leading-6">{p.fullName}</span>
                     {p.specialisation && (
                       <span
-                        className={`mt-0.5 block text-[14px] leading-5 ${
-                          active ? "text-white/85" : "text-ink-soft"
+                        className={`block text-[15px] leading-5 ${
+                          active ? "text-white/90" : "text-ink-soft"
                         }`}
                       >
                         {p.specialisation}
@@ -159,22 +174,22 @@ export function BookingWorkspace({
 
       <section
         aria-label={`Availability for ${physio.fullName}`}
-        className="min-w-0 rounded-card border border-line bg-paper p-5 sm:p-8"
+        className="min-w-0 rounded-card bg-paper p-5 sm:p-8"
       >
-        <div className="flex items-center gap-5">
-          <Avatar physio={physio} size={88} />
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-8">
+          <Avatar physio={physio} size={180} square />
           <div className="min-w-0">
-            <h2 className="text-[28px] font-bold leading-[34px] tracking-[-0.02em] text-ink">
+            <h2 className="text-[36px] font-bold leading-[42px] tracking-[-0.025em] text-ink sm:text-[40px] sm:leading-[46px]">
               {physio.fullName}
             </h2>
             {physio.specialisation && (
-              <p className="mt-0.5 text-[16px] text-ink-soft">{physio.specialisation}</p>
+              <p className="mt-1 text-[20px] text-ink-soft">{physio.specialisation}</p>
+            )}
+            {physio.bio && (
+              <p className="mt-4 max-w-[460px] text-[16px] leading-6 text-ink-soft">{physio.bio}</p>
             )}
           </div>
         </div>
-        {physio.bio && (
-          <p className="mt-4 max-w-xl text-[15px] leading-6 text-ink-soft">{physio.bio}</p>
-        )}
 
         <div className="mt-6 border-t border-line pt-6">
           <MonthCalendar
@@ -186,7 +201,7 @@ export function BookingWorkspace({
         </div>
 
         <div className="mt-6 border-t border-line pt-6">
-          <h3 className="text-[17px] font-semibold text-ink">Available times</h3>
+          <h3 className="text-[18px] font-semibold text-ink">Available times</h3>
           <div className="mt-3">
             {error && (
               <p className="text-[15px] text-state-danger">
@@ -194,7 +209,7 @@ export function BookingWorkspace({
               </p>
             )}
             {!error && slots === null && (
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6" aria-hidden="true">
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6" aria-hidden="true">
                 {Array.from({ length: 12 }).map((_, i) => (
                   <div key={i} className="h-11 rounded-btn bg-paper-sunk" />
                 ))}
@@ -214,14 +229,16 @@ export function BookingWorkspace({
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col gap-4 rounded-card bg-lime-soft p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <CalendarDays className="h-6 w-6 shrink-0 text-lime-ink" aria-hidden="true" />
+        <div className="mt-6 flex flex-col gap-4 rounded-card bg-lime-soft p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div className="flex items-center gap-4">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-paper">
+              <CalendarDays className="h-6 w-6 text-lime-ink" aria-hidden="true" />
+            </span>
             <div>
-              <p className="text-[16px] font-semibold tabular-nums text-ink">
+              <p className="text-[20px] font-bold leading-6 tabular-nums text-ink">
                 {selectedSlot ? `${dateLabel} at ${selectedSlot.label}` : dateLabel}
               </p>
-              <p className="text-[14px] text-ink-soft">
+              <p className="mt-0.5 text-[15px] text-ink-soft">
                 {selectedSlot
                   ? `${SESSION_MINUTES} minute session with ${physio.fullName}`
                   : "Pick a time to continue"}
@@ -231,14 +248,14 @@ export function BookingWorkspace({
           {selectedSlot ? (
             <Link
               href={`/book/${physio.id}/confirm?start=${encodeURIComponent(selectedSlot.startUtc)}`}
-              className="flex h-11 shrink-0 items-center justify-center rounded-btn bg-azure px-8 text-[15px] font-medium text-white transition-colors duration-150 ease-out hover:bg-azure-hover"
+              className="flex h-14 shrink-0 items-center justify-center rounded-btn bg-azure px-14 text-[18px] font-semibold text-white transition-colors duration-150 ease-out hover:bg-azure-hover"
             >
               Book
             </Link>
           ) : (
             <span
               aria-disabled="true"
-              className="flex h-11 shrink-0 items-center justify-center rounded-btn bg-paper-sunk px-8 text-[15px] font-medium text-ink-muted"
+              className="flex h-14 shrink-0 items-center justify-center rounded-btn bg-paper px-14 text-[18px] font-semibold text-ink-muted"
             >
               Book
             </span>

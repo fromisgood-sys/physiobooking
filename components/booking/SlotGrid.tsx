@@ -21,7 +21,7 @@ export function SlotGrid({ allLabels, slots, selectedLabel, onSelect }: SlotGrid
 
   return (
     <div
-      className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8"
+      className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6"
       role="listbox"
       aria-label="Choose a time"
     >
@@ -40,11 +40,11 @@ export function SlotGrid({ allLabels, slots, selectedLabel, onSelect }: SlotGrid
             aria-label={`${label} to ${endLabel(label)}, ${available ? "available" : "unavailable"}`}
             disabled={!available}
             onClick={() => slot && onSelect(slot)}
-            className={`flex h-11 min-w-[44px] items-center justify-center rounded-btn text-[15px] font-medium tabular-nums transition-colors duration-150 ease-out ${
+            className={`flex h-12 min-w-[44px] items-center justify-center rounded-btn text-[16px] font-semibold tabular-nums transition-colors duration-150 ease-out ${
               selected
                 ? "bg-azure text-white"
                 : available
-                  ? "bg-paper-tint text-ink hover:bg-azure-soft"
+                  ? "bg-azure-soft text-azure-hover hover:bg-azure-ring/40"
                   : "bg-paper-sunk text-ink-muted/50 line-through"
             }`}
           >
