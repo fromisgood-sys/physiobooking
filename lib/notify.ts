@@ -114,7 +114,6 @@ export async function notifyAppointment(params: NotifyAppointmentParams): Promis
         params.reasonForVisit ? `Reason: ${params.reasonForVisit}` : "",
       ]
         .join("\n");
-      if (params.patientEmail) await sendSmtp(params.patientEmail, subject, details);
       if (RECEPTION_EMAIL) await sendSmtp(RECEPTION_EMAIL, subject, details);
       else console.warn("[notify] RECEPTION_EMAIL not set — skipping reception copy");
       return;
