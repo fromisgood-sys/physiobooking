@@ -1,50 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ChevronDown, Globe2 } from "lucide-react";
 import { AvailabilityEditor } from "@/components/admin/AvailabilityEditor";
+import { CLINIC_TZ, SESSION_MINUTES } from "@/lib/tz";
+
+type Physio = { id: string; full_name: string; specialisation: string | null; photo_url: string | null; is_active: boolean };
+
+function Initials({ name }: { name: string }) { return <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e5f4f2] text-[11px] font-bold text-[#107f7b]">{name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span>; }
 
 export default function AdminAvailabilityPage() {
-  const [physios, setPhysios] = useState<{ id: string; full_name: string }[]>([]);
-  const [selected, setSelected] = useState<string>("");
+  const router = useRouter(); const params = useSearchParams();
+  const [physios, setPhysios] = useState<Physio[]>([]); const [selected, setSelected] = useState(params.get("physiotherapist") ?? ""); const [tab, setTab] = useState<"weekly" | "timeOff">(params.get("tab") === "timeOff" ? "timeOff" : "weekly"); const [loading, setLoading] = useState(true); const [error, setError] = useState(false);
+  useEffect(() => { fetch("/api/admin/physiotherapists").then((res) => { if (!res.ok) throw new Error(); return res.json(); }).then((data) => { const active = (data.physiotherapists ?? []).filter((item: Physio) => item.is_active); setPhysios(active); if (!selected && active[0]) setSelected(active[0].id); }).catch(() => setError(true)).finally(() => setLoading(false)); }, [selected]);
+  const current = physios.find((physio) => physio.id === selected) ?? null;
+  function changePhysio(id: string) { setSelected(id); router.replace(`/admin/availability?physiotherapist=${encodeURIComponent(id)}&tab=${tab}`, { scroll: false }); }
+  function changeTab(next: "weekly" | "timeOff") { setTab(next); if (selected) router.replace(`/admin/availability?physiotherapist=${encodeURIComponent(selected)}&tab=${next}`, { scroll: false }); }
 
-  useEffect(() => {
-    fetch("/api/admin/physiotherapists")
-      .then((res) => res.json())
-      .then((data) => {
-        setPhysios(data.physiotherapists ?? []);
-        if (data.physiotherapists?.[0]) setSelected(data.physiotherapists[0].id);
-      })
-      .catch(() => setPhysios([]));
-  }, []);
-
-  return (
-    <main className="mx-auto w-full max-w-[1120px] flex-1 px-6 py-16">
-      <h1 className="text-[32px] font-bold leading-[38px] tracking-[-0.025em] text-ink">
-        Availability
-      </h1>
-
-      <div className="mt-6 flex flex-col gap-1">
-        <label
-          className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-muted"
-          htmlFor="physio"
-        >
-          Physiotherapist
-        </label>
-        <select
-          id="physio"
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-          className="h-10 w-64 rounded-btn border border-line-strong bg-paper px-3 text-[15px] text-ink"
-        >
-          {physios.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.full_name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {selected && <AvailabilityEditor key={selected} physioId={selected} />}
-    </main>
-  );
+  return <main className="mx-auto w-full max-w-[1180px] pb-8"><header className="flex flex-wrap items-start justify-between gap-4 border-b border-[#e1e8eb] pb-5"><div><h1 className="text-[28px] font-bold tracking-[-0.025em] text-[#183247]">Availability</h1><p className="mt-1 text-[12px] text-[#718596]">Manage physiotherapist availability and time off.</p></div><div className="flex items-center gap-2 rounded-[8px] border border-[#dce5e9] bg-white px-3 py-2"><Globe2 className="h-4 w-4 text-[#168884]" aria-hidden="true" /><div><span className="block text-[9px] text-[#81939e]">Clinic timezone</span><span className="block text-[11px] font-semibold text-[#29485c]">{CLINIC_TZ}</span></div></div></header>{error && <div className="mt-6 rounded-[8px] border border-[#edc8c5] bg-[#fff5f4] p-4 text-[12px] text-[#b33c38]">Couldn&apos;t load physiotherapists. <button type="button" onClick={() => window.location.reload()} className="font-semibold underline">Try again</button></div>}{!error && loading && <div className="mt-6 h-14 animate-pulse rounded-[8px] bg-[#f0f4f5]" />}{!error && !loading && physios.length === 0 && <div className="mt-6 rounded-[9px] border border-[#e1e8eb] bg-white p-10 text-center text-[12px] text-[#718596]">No active physiotherapists are available to configure.</div>}{!error && !loading && current && <><div className="mt-5 flex flex-wrap items-end justify-between gap-4"><label className="block w-full max-w-[360px] text-[10px] font-semibold text-[#50697b]">Physiotherapist<span className="relative mt-1 block"><span className="pointer-events-none absolute left-3 top-2.5">{current.photo_url ? <img src={current.photo_url} alt="" className="h-8 w-8 rounded-full object-cover" /> : <Initials name={current.full_name} />}</span><select aria-label="Select physiotherapist" value={selected} onChange={(event) => changePhysio(event.target.value)} className="h-12 w-full appearance-none rounded-[8px] border border-[#dce5e9] bg-white pl-14 pr-9 text-[12px] font-semibold text-[#29485c] outline-none focus:border-[#168884]"><option value={current.id}>{current.full_name}{current.specialisation ? ` · ${current.specialisation}` : ""}</option>{physios.filter((physio) => physio.id !== current.id).map((physio) => <option key={physio.id} value={physio.id}>{physio.full_name}{physio.specialisation ? ` · ${physio.specialisation}` : ""}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-4 h-4 w-4 text-[#617988]" aria-hidden="true" /></span></label><p className="text-[10px] text-[#718596]">Each appointment is {SESSION_MINUTES} minutes · Clinic hours 08:00-17:00</p></div><div role="tablist" aria-label="Availability views" className="mt-5 flex gap-6 border-b border-[#e1e8eb]"><button type="button" role="tab" aria-selected={tab === "weekly"} onClick={() => changeTab("weekly")} className={`border-b-2 px-2 py-3 text-[11px] font-semibold ${tab === "weekly" ? "border-[#168884] text-[#107f7b]" : "border-transparent text-[#718596]"}`}>Weekly Availability</button><button type="button" role="tab" aria-selected={tab === "timeOff"} onClick={() => changeTab("timeOff")} className={`border-b-2 px-2 py-3 text-[11px] font-semibold ${tab === "timeOff" ? "border-[#168884] text-[#107f7b]" : "border-transparent text-[#718596]"}`}>Time Off / Blocked Periods</button></div><AvailabilityEditor key={selected} physioId={selected} mode={tab} /></>}</main>;
 }

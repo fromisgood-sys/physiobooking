@@ -2,6 +2,8 @@
 
 Judgement calls made where the spec or DESIGN.md was silent or where tooling had moved on since they were written.
 
+- **SMTP is the only email transport.** Gmail SMTP via server-side Nodemailer sends separate messages to the patient and configured `RECEPTION_EMAIL`; the individual physiotherapist is never an email recipient. Missing SMTP settings produce a non-blocking status with no fallback transport. Vercel Production secrets must also be copied into local `.env` for localhost testing.
+
 - **Tailwind v4, not `tailwind.config.ts`.** `create-next-app@latest` installs Tailwind v4, which is CSS-first (`@theme` in `app/globals.css`) and has no `tailwind.config.ts` by default. DESIGN.md's tokens are defined there instead — same tokens, same discipline (no default Tailwind colour names, no default radii), different mechanism.
 - **shadcn/ui `base-nova` style.** The installed shadcn CLI (v4) defaults to a Base UI (`@base-ui/react`) primitive layer rather than Radix, with a separate `cn` package. Used as installed; all shadcn semantic tokens (`--primary`, `--border`, `--ring`, etc.) are remapped to DESIGN.md's palette so generated components inherit the clinical look instead of shadcn's neutral default.
 - **Dark-mode status colours.** DESIGN.md gives light-mode-only hex values for `state.ok/warn/danger`. Dark-mode variants were chosen to keep the same hue and AA contrast against `carbon` grounds; not specified in DESIGN.md.

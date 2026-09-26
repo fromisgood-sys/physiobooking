@@ -149,14 +149,13 @@ export async function POST(request: Request) {
 
   // Never let a notification failure fail the booking response — notifyAppointment
   // already catches internally, this await only adds latency, not risk.
-  await notifyAppointment({
+    const notificationResult = await notifyAppointment({
     event: "booking_created",
     reference,
     patientName: profile?.full_name ?? user.email ?? "Patient",
     patientEmail: user.email ?? "",
     patientPhone: phone,
     physiotherapistName: physio.full_name,
-    physiotherapistEmail: physio.email,
     date: format(localStart, "yyyy-MM-dd"),
     startTime: format(localStart, "HH:mm"),
     endTime: format(localEnd, "HH:mm"),
@@ -169,5 +168,6 @@ export async function POST(request: Request) {
     reference,
     startUtc: appointment.starts_at,
     endUtc: appointment.ends_at,
+    notification: notificationResult.patient,
   });
 }

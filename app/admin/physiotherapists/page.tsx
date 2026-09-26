@@ -1,138 +1,93 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
+import { Activity, CalendarDays, ChevronLeft, ChevronRight, Edit3, Mail, MoreHorizontal, Pencil, Plus, Search, UserRound, Users, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PhysiotherapistForm } from "@/components/admin/PhysiotherapistForm";
+import { CLINIC_TZ } from "@/lib/tz";
 
-interface Physio {
-  id: string;
-  full_name: string;
-  specialisation: string | null;
-  bio: string | null;
-  email: string;
-  photo_url: string | null;
-  is_active: boolean;
+/* eslint-disable react-hooks/set-state-in-effect */
+
+type Physio = { id: string; full_name: string; specialisation: string | null; bio: string | null; email: string; photo_url: string | null; is_active: boolean; created_at?: string };
+type Rule = { id: string; weekday: number; start_time: string; end_time: string };
+type TimeOff = { id: string; starts_at: string; ends_at: string; reason: string | null };
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const PAGE_SIZE = 8;
+const initials = (name: string) => name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+
+function Avatar({ physio, large = false }: { physio: Physio; large?: boolean }) {
+  return physio.photo_url ? <img src={physio.photo_url} alt={`${physio.full_name} profile`} className={`${large ? "h-16 w-16" : "h-10 w-10"} rounded-full object-cover`} /> : <span aria-hidden="true" className={`flex ${large ? "h-16 w-16 text-lg" : "h-10 w-10 text-[11px]"} items-center justify-center rounded-full bg-[#e5f4f2] font-bold text-[#107f7b]`}>{initials(physio.full_name)}</span>;
 }
+function StatusBadge({ active }: { active: boolean }) { return <span className={`inline-flex items-center gap-1.5 rounded-[5px] border px-2 py-1 text-[10px] font-semibold ${active ? "border-[#c8e6df] bg-[#edf8f4] text-[#187b68]" : "border-[#dfe5e8] bg-[#f3f5f6] text-[#667986]"}`}><span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />{active ? "Active" : "Inactive"}</span>; }
 
 export default function AdminPhysiotherapistsPage() {
+  const router = useRouter();
+  const params = useSearchParams();
   const [physios, setPhysios] = useState<Physio[] | null>(null);
+  const [error, setError] = useState(false);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [specialisation, setSpecialisation] = useState("all");
+  const [page, setPage] = useState(1);
+  const [selectedId, setSelectedId] = useState<string | null>(params.get("physiotherapist"));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Physio | null>(null);
 
   function refresh() {
-    fetch("/api/admin/physiotherapists")
-      .then((res) => res.json())
-      .then((data) => setPhysios(data.physiotherapists ?? []))
-      .catch(() => setPhysios([]));
+    setPhysios(null); setError(false);
+    fetch("/api/admin/physiotherapists").then((res) => { if (!res.ok) throw new Error(); return res.json(); }).then((data) => setPhysios(data.physiotherapists ?? [])).catch(() => { setPhysios([]); setError(true); });
   }
-
-  useEffect(refresh, []);
-
-  async function toggleActive(p: Physio) {
-    await fetch(`/api/admin/physiotherapists/${p.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_active: !p.is_active }),
+  useEffect(() => { refresh(); }, []);
+  const specialisations = useMemo(() => Array.from(new Set((physios ?? []).map((item) => item.specialisation?.trim()).filter(Boolean))).sort() as string[], [physios]);
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return (physios ?? []).filter((item) => {
+      const textMatch = !term || [item.full_name, item.email, item.specialisation ?? ""].some((value) => value.toLowerCase().includes(term));
+      const statusMatch = status === "all" || (status === "active" ? item.is_active : !item.is_active);
+      return textMatch && statusMatch && (specialisation === "all" || item.specialisation === specialisation);
     });
-    refresh();
+  }, [physios, search, status, specialisation]);
+  const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const selected = physios?.find((item) => item.id === selectedId) ?? null;
+  const activeCount = (physios ?? []).filter((item) => item.is_active).length;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const changeFilter = (callback: () => void) => { setPage(1); callback(); };
+  function selectPhysio(id: string) { setSelectedId(id); router.replace(`/admin/physiotherapists?physiotherapist=${encodeURIComponent(id)}`, { scroll: false }); }
+  function closeDetails() { setSelectedId(null); router.replace("/admin/physiotherapists", { scroll: false }); }
+  async function toggleActive(physio: Physio) {
+    if (!window.confirm(`${physio.is_active ? "Deactivate" : "Activate"} ${physio.full_name}?`)) return;
+    const res = await fetch(`/api/admin/physiotherapists/${physio.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_active: !physio.is_active }) });
+    if (res.ok) refresh();
   }
 
-  return (
-    <main className="mx-auto w-full max-w-[1120px] flex-1 px-6 py-16">
-      <div className="flex items-center justify-between">
-        <h1 className="text-[32px] font-bold leading-[38px] tracking-[-0.025em] text-ink">
-          Physiotherapists
-        </h1>
-        <button
-          type="button"
-          onClick={() => {
-            setEditing(null);
-            setDialogOpen(true);
-          }}
-          className="flex h-11 items-center justify-center rounded-btn bg-azure px-4 text-[15px] font-medium text-white transition-colors duration-150 ease-out hover:bg-azure-hover"
-        >
-          Add physiotherapist
-        </button>
-      </div>
-
-      {physios === null && <p className="mt-8 text-[15px] text-ink-soft">Loading&hellip;</p>}
-
-      {physios !== null && (
-        <div className="mt-8 flex flex-col gap-4">
-          {physios.map((p) => (
-            <div
-              key={p.id}
-              className="flex flex-col gap-3 rounded-card border border-line bg-paper p-5 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="flex items-center gap-4">
-                {p.photo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.photo_url} alt="" className="h-14 w-14 rounded-[16px] object-cover" />
-                ) : (
-                  <div className="h-14 w-14 rounded-[16px] bg-azure-soft" />
-                )}
-                <div>
-                  <p className="text-[18px] font-semibold text-ink">{p.full_name}</p>
-                  <p className="text-[15px] text-ink-soft">
-                    {p.specialisation ?? "—"} &middot; {p.email}
-                  </p>
-                  {!p.is_active && (
-                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.06em] text-state-danger">
-                      Inactive
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-3 text-[15px] font-medium">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(p);
-                    setDialogOpen(true);
-                  }}
-                  className="text-azure-hover hover:underline"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleActive(p)}
-                  className="text-state-danger hover:underline"
-                >
-                  {p.is_active ? "Deactivate" : "Reactivate"}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit physiotherapist" : "Add physiotherapist"}</DialogTitle>
-          </DialogHeader>
-          <PhysiotherapistForm
-            initial={
-              editing
-                ? {
-                    id: editing.id,
-                    full_name: editing.full_name,
-                    specialisation: editing.specialisation ?? "",
-                    bio: editing.bio ?? "",
-                    email: editing.email,
-                    photo_url: editing.photo_url ?? "",
-                  }
-                : undefined
-            }
-            onSaved={() => {
-              setDialogOpen(false);
-              refresh();
-            }}
-            onCancel={() => setDialogOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
-    </main>
-  );
+  return <main className="mx-auto w-full max-w-[1180px] pb-8">
+    <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[#e1e8eb] pb-5"><div><h1 className="text-[28px] font-bold tracking-[-0.025em] text-[#183247]">Physiotherapists</h1><p className="mt-1 text-[12px] text-[#718596]">Manage clinic physiotherapists and their information.</p></div><button type="button" onClick={() => { setEditing(null); setDialogOpen(true); }} className="flex h-10 items-center gap-2 rounded-[8px] bg-[#107f7b] px-4 text-[12px] font-semibold text-white hover:bg-[#096965]"><Plus className="h-4 w-4" aria-hidden="true" />Add Physiotherapist</button></header>
+    <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3"><Metric icon={<Users />} label="Total Physiotherapists" value={physios?.length ?? "—"} detail={physios ? `${activeCount} active · ${physios.length - activeCount} inactive` : "Loading"} /><Metric icon={<Activity />} label="Active Physiotherapists" value={physios ? activeCount : "—"} detail={physios?.length ? `${Math.round((activeCount / physios.length) * 100)}% of clinic team` : "No records"} /><Metric icon={<CalendarDays />} label="Specialisations" value={physios ? specialisations.length : "—"} detail="Distinct recorded specialisations" /></div>
+    <div className={`mt-5 grid min-w-0 gap-4 ${selected ? "xl:grid-cols-[minmax(0,1fr)_350px]" : "grid-cols-1"}`}><section className="min-w-0 overflow-hidden rounded-[9px] border border-[#e1e8eb] bg-white">
+      <div className="flex flex-wrap gap-2 border-b border-[#edf1f2] p-4"><label className="relative min-w-[220px] flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-[#81939e]" aria-hidden="true" /><span className="sr-only">Search physiotherapists</span><input value={search} onChange={(event) => changeFilter(() => setSearch(event.target.value))} placeholder="Search by name, email or specialisation..." className="h-10 w-full rounded-[7px] border border-[#dce5e9] pl-9 pr-3 text-[11px] outline-none focus:border-[#168884]" /></label><select aria-label="Filter by status" value={status} onChange={(event) => changeFilter(() => setStatus(event.target.value))} className="h-10 rounded-[7px] border border-[#dce5e9] px-3 text-[11px]"><option value="all">All Statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select>{specialisations.length > 0 && <select aria-label="Filter by specialisation" value={specialisation} onChange={(event) => changeFilter(() => setSpecialisation(event.target.value))} className="h-10 rounded-[7px] border border-[#dce5e9] px-3 text-[11px]"><option value="all">All Specialisations</option>{specialisations.map((item) => <option key={item} value={item}>{item}</option>)}</select>}</div>
+      {error && <div className="p-10 text-center text-[12px] text-[#b33c38]">Couldn&apos;t load physiotherapists. <button type="button" onClick={refresh} className="font-semibold underline">Try again</button></div>}
+      {!error && physios === null && <div className="space-y-3 p-5">{Array.from({ length: 6 }, (_, index) => <div key={index} className="h-12 animate-pulse rounded-[6px] bg-[#f0f4f5]" />)}</div>}
+      {!error && physios !== null && filtered.length === 0 && <div className="p-12 text-center"><p className="text-[13px] font-semibold text-[#27465b]">{physios.length ? "No physiotherapists match these filters." : "No physiotherapists have been added."}</p><button type="button" onClick={() => { setSearch(""); setStatus("all"); setSpecialisation("all"); setPage(1); }} className="mt-4 text-[11px] font-semibold text-[#107f7b]">Reset filters</button></div>}
+      {visible.length > 0 && <div className="overflow-x-auto"><table className="w-full min-w-[700px] border-collapse text-left"><thead><tr className="border-b border-[#e8edef] bg-[#fbfcfc] text-[10px] font-semibold text-[#6d8290]"><th className="px-4 py-3">Physiotherapist</th><th className="px-4 py-3">Specialisation</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Actions</th></tr></thead><tbody>{visible.map((physio) => <tr key={physio.id} aria-selected={selectedId === physio.id} tabIndex={0} onClick={() => selectPhysio(physio.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectPhysio(physio.id); } }} className={`cursor-pointer border-b border-[#edf1f2] text-[11px] last:border-0 ${selectedId === physio.id ? "border-l-2 border-l-[#168884] bg-[#f0f9f7]" : "hover:bg-[#fbfdfd]"}`}><td className="px-4 py-3"><div className="flex items-center gap-2.5"><Avatar physio={physio} /><span><span className="block font-semibold text-[#29485c]">{physio.full_name}</span><span className="block text-[9px] text-[#81939e]">{physio.email}</span></span></div></td><td className="px-4 py-3 text-[#536c7b]">{physio.specialisation ?? "—"}</td><td className="max-w-[190px] truncate px-4 py-3 text-[#536c7b]" title={physio.email}>{physio.email}</td><td className="px-4 py-3"><StatusBadge active={physio.is_active} /></td><td className="px-4 py-3"><div className="flex items-center gap-1"><button type="button" aria-label={`View details for ${physio.full_name}`} onClick={(event) => { event.stopPropagation(); selectPhysio(physio.id); }} className="rounded-[5px] p-2 text-[#617988]"><UserRound className="h-3.5 w-3.5" /></button><button type="button" aria-label={`Edit ${physio.full_name}`} onClick={(event) => { event.stopPropagation(); setEditing(physio); setDialogOpen(true); }} className="rounded-[5px] p-2 text-[#617988]"><Edit3 className="h-3.5 w-3.5" /></button><button type="button" aria-label={`${physio.is_active ? "Deactivate" : "Activate"} ${physio.full_name}`} onClick={(event) => { event.stopPropagation(); toggleActive(physio); }} className="rounded-[5px] p-2 text-[#617988]"><MoreHorizontal className="h-3.5 w-3.5" /></button></div></td></tr>)}</tbody></table></div>}
+      {visible.length > 0 && <div className="flex items-center justify-between border-t border-[#e8edef] px-4 py-3"><p className="text-[10px] text-[#718596]">Showing {((page - 1) * PAGE_SIZE) + 1} to {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} physiotherapists</p><div className="flex items-center gap-1"><button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((value) => value - 1)} className="flex h-7 w-7 items-center justify-center rounded-[5px] border border-[#dce5e9] disabled:opacity-35"><ChevronLeft className="h-3.5 w-3.5" /></button><span className="px-2 text-[10px] font-semibold">{page} / {totalPages}</span><button type="button" aria-label="Next page" disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)} className="flex h-7 w-7 items-center justify-center rounded-[5px] border border-[#dce5e9] disabled:opacity-35"><ChevronRight className="h-3.5 w-3.5" /></button></div></div>}
+    </section>{selected && <Details physio={selected} onClose={closeDetails} onEdit={() => { setEditing(selected); setDialogOpen(true); }} onToggle={() => toggleActive(selected)} />}</div>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}><DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>{editing ? "Edit physiotherapist" : "Add physiotherapist"}</DialogTitle></DialogHeader><PhysiotherapistForm initial={editing ? { id: editing.id, full_name: editing.full_name, specialisation: editing.specialisation ?? "", bio: editing.bio ?? "", email: editing.email, photo_url: editing.photo_url ?? "" } : undefined} onSaved={() => { setDialogOpen(false); refresh(); }} onCancel={() => setDialogOpen(false)} /></DialogContent></Dialog>
+  </main>;
 }
+
+function Metric({ icon, label, value, detail }: { icon: React.ReactNode; label: string; value: string | number; detail: string }) { return <div className="rounded-[9px] border border-[#e1e8eb] bg-white p-4 shadow-[0_2px_8px_rgba(14,17,22,0.04)]"><div className="flex items-start gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e5f4f2] text-[#107f7b]" aria-hidden="true">{icon}</span><div><p className="text-[10px] font-semibold text-[#718596]">{label}</p><p className="mt-1 text-[22px] font-bold tabular-nums text-[#19364c]">{value}</p><p className="mt-1 text-[9px] text-[#81939e]">{detail}</p></div></div></div>; }
+
+function Details({ physio, onClose, onEdit, onToggle }: { physio: Physio; onClose: () => void; onEdit: () => void; onToggle: () => void }) {
+  const [tab, setTab] = useState<"overview" | "availability" | "timeOff">("overview"); const [rules, setRules] = useState<Rule[] | null>(null); const [timeOff, setTimeOff] = useState<TimeOff[] | null>(null); const [detailError, setDetailError] = useState(false);
+  useEffect(() => { setRules(null); setTimeOff(null); setDetailError(false); fetch(`/api/admin/availability?physioId=${physio.id}`).then((res) => { if (!res.ok) throw new Error(); return res.json(); }).then((data) => { setRules(data.rules ?? []); setTimeOff(data.timeOff ?? []); }).catch(() => setDetailError(true)); }, [physio.id]);
+  const grouped = new Map<number, Rule>(); (rules ?? []).forEach((rule) => grouped.set(rule.weekday, rule));
+  return <aside className="min-w-0 overflow-y-auto rounded-[9px] border border-[#e1e8eb] bg-white xl:max-h-[calc(100vh-145px)]"><div className="flex items-start justify-between border-b border-[#edf1f2] px-5 py-4"><div className="flex items-center gap-3"><Avatar physio={physio} large /><div><h2 className="text-[15px] font-bold text-[#19364c]">Physiotherapist Details</h2><p className="mt-1 text-[10px] text-[#617988]">{physio.full_name} · {physio.specialisation ?? "Physiotherapist"}</p><div className="mt-2"><StatusBadge active={physio.is_active} /></div></div></div><button type="button" aria-label="Close physiotherapist details" onClick={onClose} className="p-1 text-[#617988]"><X className="h-4 w-4" /></button></div><div className="border-b border-[#edf1f2] px-5"><div role="tablist" aria-label="Physiotherapist details" className="flex gap-5"><DetailTab active={tab === "overview"} onClick={() => setTab("overview")}>Overview</DetailTab><DetailTab active={tab === "availability"} onClick={() => setTab("availability")}>Availability</DetailTab><DetailTab active={tab === "timeOff"} onClick={() => setTab("timeOff")}>Time Off</DetailTab></div></div><div className="space-y-4 p-5">{detailError && <p className="text-[11px] text-[#b33c38]">Couldn&apos;t load schedule details.</p>}{tab === "overview" && <><section><h3 className="text-[11px] font-bold text-[#29485c]">About</h3><p className="mt-2 text-[10px] leading-5 text-[#536c7b]">{physio.bio ?? "No profile description has been provided."}</p></section><Info icon={<Pencil />} label="Specialisation" value={physio.specialisation ?? "Not provided"} /><Info icon={<Mail />} label="Email" value={physio.email} />{physio.created_at && <Info icon={<CalendarDays />} label="Joined clinic" value={format(toZonedTime(new Date(physio.created_at), CLINIC_TZ), "d MMM yyyy")} />}</>}{tab === "availability" && <section><h3 className="text-[11px] font-bold text-[#29485c]">Weekly schedule</h3>{rules === null ? <Skeleton /> : rules.length === 0 ? <p className="mt-3 text-[10px] text-[#81939e]">No availability configured.</p> : <div className="mt-3 space-y-2">{Array.from({ length: 7 }, (_, day) => { const rule = grouped.get(day); return <div key={day} className="flex justify-between text-[10px]"><span className="text-[#536c7b]">{DAYS[day]}</span><span className="tabular-nums text-[#29485c]">{rule ? `${rule.start_time.slice(0, 5)} - ${rule.end_time.slice(0, 5)}` : "Closed"}</span></div>; })}</div>}</section>}{tab === "timeOff" && <section><h3 className="text-[11px] font-bold text-[#29485c]">Time off</h3>{timeOff === null ? <Skeleton /> : timeOff.length === 0 ? <p className="mt-3 text-[10px] text-[#81939e]">No time off scheduled.</p> : <div className="mt-3 space-y-3">{timeOff.map((item) => <div key={item.id} className="rounded-[6px] border border-[#e3eaec] p-3"><p className="text-[10px] text-[#29485c]">{format(toZonedTime(new Date(item.starts_at), CLINIC_TZ), "d MMM yyyy, HH:mm")} - {format(toZonedTime(new Date(item.ends_at), CLINIC_TZ), "d MMM yyyy, HH:mm")}</p>{item.reason && <p className="mt-1 text-[9px] text-[#718596]">{item.reason}</p>}</div>)}</div>}</section>}</div><div className="flex flex-wrap gap-2 border-t border-[#edf1f2] p-4"><button type="button" onClick={onEdit} className="flex h-9 items-center gap-2 rounded-[6px] border border-[#a8d2ce] px-3 text-[10px] font-semibold text-[#107f7b]"><Pencil className="h-3.5 w-3.5" />Edit Profile</button><button type="button" onClick={onToggle} className={`h-9 rounded-[6px] border px-3 text-[10px] font-semibold ${physio.is_active ? "border-[#edb6b2] text-[#b33c38]" : "border-[#a8d2ce] text-[#107f7b]"}`}>{physio.is_active ? "Deactivate" : "Activate"}</button></div></aside>;
+}
+function DetailTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) { return <button type="button" role="tab" aria-selected={active} onClick={onClick} className={`border-b-2 py-3 text-[10px] font-semibold ${active ? "border-[#168884] text-[#107f7b]" : "border-transparent text-[#718596]"}`}>{children}</button>; }
+function Info({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) { return <div className="flex gap-2 border-t border-[#edf1f2] pt-3"><span className="text-[#168884]">{icon}</span><div><span className="block text-[9px] text-[#81939e]">{label}</span><span className="mt-1 block text-[10px] font-medium text-[#29485c]">{value}</span></div></div>; }
+function Skeleton() { return <div className="mt-3 space-y-2">{[1, 2, 3].map((item) => <div key={item} className="h-5 animate-pulse rounded bg-[#f0f4f5]" />)}</div>; }
+
+/* eslint-enable react-hooks/set-state-in-effect */

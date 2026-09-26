@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 export interface AdminFiltersValue {
   dateFrom: string;
   dateTo: string;
+  timeOfDay: "all" | "morning" | "noon" | "afternoon";
   physioId: string;
   status: string;
   q: string;
@@ -16,6 +17,12 @@ export interface FiltersProps {
 }
 
 const STATUS_OPTIONS = ["", "confirmed", "rescheduled", "cancelled", "completed", "no_show"];
+const TIME_OPTIONS = [
+  { value: "all", label: "All Day" },
+  { value: "morning", label: "Morning" },
+  { value: "noon", label: "Noon" },
+  { value: "afternoon", label: "Afternoon" },
+] as const;
 
 const inputClass =
   "h-10 rounded-btn border border-line-strong bg-paper px-3 text-[15px] text-ink outline-none focus-visible:border-azure focus-visible:ring-2 focus-visible:ring-azure-ring";
@@ -41,29 +48,17 @@ export function Filters({ value, onApply }: FiltersProps) {
       className="mt-6 flex flex-wrap items-end gap-3"
     >
       <div className="flex flex-col gap-1">
-        <label className={labelClass} htmlFor="dateFrom">
-          From
-        </label>
-        <input
-          id="dateFrom"
-          type="date"
-          value={draft.dateFrom}
-          onChange={(e) => setDraft({ ...draft, dateFrom: e.target.value })}
-          className={inputClass}
-        />
+        <label className={labelClass} htmlFor="dateFrom">Date</label>
+        <input id="dateFrom" type="date" value={draft.dateFrom} onChange={(e) => setDraft({ ...draft, dateFrom: e.target.value, dateTo: e.target.value })} className={inputClass} />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className={labelClass} htmlFor="dateTo">
-          To
-        </label>
-        <input
-          id="dateTo"
-          type="date"
-          value={draft.dateTo}
-          onChange={(e) => setDraft({ ...draft, dateTo: e.target.value })}
-          className={inputClass}
-        />
+        <label className={labelClass} htmlFor="timeOfDay">Time of Day</label>
+        <select id="timeOfDay" value={draft.timeOfDay} onChange={(e) => setDraft({ ...draft, timeOfDay: e.target.value as AdminFiltersValue["timeOfDay"] })} className={inputClass}>
+          {TIME_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
       </div>
 
       <div className="flex flex-col gap-1">

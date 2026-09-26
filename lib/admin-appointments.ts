@@ -2,16 +2,19 @@ import "server-only";
 import { fromZonedTime } from "date-fns-tz";
 import { CLINIC_TZ } from "./tz";
 
+import { adminTimeWindowUtc, type AdminTimeOfDay } from "./admin-appointment-filters";
+
 export interface AdminAppointmentFilters {
   dateFrom: string | null;
   dateTo: string | null;
+  timeOfDay: AdminTimeOfDay | null;
   physioId: string | null;
   status: string | null;
   q: string | null;
 }
 
 export const ADMIN_APPOINTMENTS_SELECT =
-  "id, starts_at, ends_at, status, reason_for_visit, notes, created_at, physiotherapist_id, patient:profiles!appointments_patient_id_fkey(full_name, email, phone), physiotherapists(full_name)";
+  "id, starts_at, ends_at, status, reason_for_visit, notes, created_at, updated_at, created_by, physiotherapist_id, patient:profiles!appointments_patient_id_fkey(full_name, email, phone), creator:profiles!appointments_created_by_fkey(full_name, email), physiotherapists(full_name, photo_url)";
 
 const ALLOWED_SORT = new Set(["starts_at", "created_at", "status"]);
 
@@ -19,6 +22,7 @@ export function parseAdminAppointmentFilters(searchParams: URLSearchParams): Adm
   return {
     dateFrom: searchParams.get("dateFrom"),
     dateTo: searchParams.get("dateTo"),
+    timeOfDay: (searchParams.get("timeOfDay") as AdminTimeOfDay | null) ?? "all",
     physioId: searchParams.get("physioId"),
     status: searchParams.get("status"),
     q: searchParams.get("q"),
@@ -49,6 +53,12 @@ export function applyAdminAppointmentFilters<T extends { gte: any; lte: any; eq:
   let q = query;
   if (filters.dateFrom) q = q.gte("starts_at", dateFromUtc(filters.dateFrom));
   if (filters.dateTo) q = q.lte("starts_at", dateToUtc(filters.dateTo));
+  if (filters.timeOfDay && filters.timeOfDay !== "all" && filters.dateFrom) {
+    const window = adminTimeWindowUtc(filters.dateFrom, filters.timeOfDay, CLINIC_TZ);
+    if (window) {
+      q = q.gte("starts_at", window.start).lt("starts_at", window.end);
+    }
+  }
   if (filters.physioId) q = q.eq("physiotherapist_id", filters.physioId);
   if (filters.status) q = q.eq("status", filters.status);
   if (filters.q) {

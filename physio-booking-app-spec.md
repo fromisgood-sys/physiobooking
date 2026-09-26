@@ -24,7 +24,7 @@ Three roles:
 - **Styling:** Tailwind CSS + shadcn/ui components
 - **Database & Auth:** Supabase (Postgres, Row Level Security, Supabase Auth with Google OAuth provider)
 - **Calendar:** Google Calendar API v3, using the Google OAuth token obtained via Supabase Auth (request the `https://www.googleapis.com/auth/calendar.events` scope)
-- **Email:** Formspree (HTTP POST to a Formspree form endpoint) — **do not configure SMTP or any mail server**
+- **Email:** Gmail SMTP via Nodemailer, configured with `SMTP_USER`, `SMTP_PASSWORD`, and `RECEPTION_EMAIL`. Vercel environment variables do not configure local development; use `.env` locally.
 - **Excel export:** `exceljs` (server-side generation, streamed as an `.xlsx` download)
 - **Date/time:** `date-fns` and `date-fns-tz`. Store all timestamps in UTC (`timestamptz`), render in the clinic timezone.
 - **Validation:** `zod` on both client and server
@@ -238,39 +238,19 @@ Implement each as a Next.js route handler or server action with zod validation, 
 
 ---
 
-## 8. Email notifications (Formspree)
+## 8. Email notifications (Google SMTP)
 
-Use a single server-side helper `lib/notify.ts` that POSTs JSON to `FORMSPREE_ENDPOINT`. Never call Formspree from the browser.
+Use a single server-side helper `lib/notify.ts` with Nodemailer and the clinic's Google SMTP credentials (`SMTP_USER`, `SMTP_PASSWORD`, optional `SMTP_HOST`, `SMTP_PORT`, and `SMTP_FROM`). Never call an email provider from the browser or use a fallback transport.
 
 Send on: **booking created**, **rescheduled**, **cancelled**, **admin edit**.
 
-Each send fires **two** payloads:
-1. To the patient's email.
-2. To the reception inbox (`RECEPTION_EMAIL`), cc-style, including the assigned physiotherapist's email in the body.
+Each event sends two separate SMTP messages when enabled:
+1. To the patient's email (optional only for an admin-created appointment).
+2. To the configured reception inbox (`RECEPTION_EMAIL`), always attempted independently of the patient send.
 
-Payload shape:
+The physiotherapist is not an email recipient. The reception message may identify the assigned physiotherapist by name, but must not include their individual email address.
 
-```json
-{
-  "_subject": "Appointment confirmed — Tue 14 Oct, 09:30 with Dr. Kandjii",
-  "recipient": "patient@example.com",
-  "event": "booking_created",
-  "reference": "APT-8F3K2",
-  "patient_name": "...",
-  "patient_email": "...",
-  "patient_phone": "...",
-  "physiotherapist": "...",
-  "physiotherapist_email": "...",
-  "date": "2026-10-14",
-  "start_time": "09:30",
-  "end_time": "10:15",
-  "reason_for_visit": "...",
-  "status": "confirmed",
-  "message": "Plain-text body summarising the appointment and how to reschedule."
-}
-```
-
-**Reliability rules:** email failures must never roll back a successful booking. Wrap notification calls in try/catch, log the failure, surface a non-blocking warning toast, and return success for the booking itself. Retry once with a short backoff.
+**Reliability rules:** email failures must never roll back a successful booking. Catch each SMTP recipient failure independently, retry once with a short backoff, return per-recipient delivery results, and surface non-blocking status to the caller.
 
 ---
 
@@ -311,7 +291,11 @@ SUPABASE_SERVICE_ROLE_KEY=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 Callback URL (for OAuth)
-FORMSPREE_ENDPOINT=
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM=
 RECEPTION_EMAIL=
 NEXT_PUBLIC_CLINIC_TZ=Africa/Windhoek
 NEXT_PUBLIC_APP_URL=
@@ -368,7 +352,7 @@ Write unit tests with Vitest for:
 2. `supabase/migrations/0001_init.sql` including tables, constraints, triggers, RLS policies, and helper functions.
 3. `supabase/seed.sql`.
 4. `.env.example`.
-5. `README.md` covering: local setup, Supabase project creation, enabling the Google provider, Google Cloud Console OAuth client setup with the exact redirect URIs and scopes, creating the Formspree form, promoting a user to admin, running migrations and seeds, running tests, and deploying to Vercel.
+5. `README.md` covering: local setup, Supabase project creation, enabling the Google provider, Google Cloud Console OAuth client setup with the exact redirect URIs and scopes, Gmail SMTP setup, promoting a user to admin, running migrations and seeds, running tests, and deploying to Vercel.
 6. A short `DECISIONS.md` listing any judgement calls made where this spec was silent.
 
 ---
@@ -381,7 +365,7 @@ The build is complete only when all of the following are true:
 - [ ] Selecting a physiotherapist and a date shows only genuinely free 45-minute slots between 08:00 and 16:15.
 - [ ] Past dates and past times cannot be selected, and are rejected if posted directly to the API.
 - [ ] Two concurrent bookings for the same slot result in exactly one success and one clear "slot no longer available" error.
-- [ ] Booking sends emails to the patient and the reception inbox via Formspree, and creates a Google Calendar event on the patient's calendar with the physiotherapist as attendee.
+- [ ] Booking sends email over SMTP to the patient and configured reception inbox (never to the individual physiotherapist), and creates a Google Calendar event on the patient's calendar with the physiotherapist as attendee.
 - [ ] A patient can reschedule and cancel, with the calendar event and both emails updated accordingly.
 - [ ] `/appointments` shows the patient's full history, past appointments included.
 - [ ] An admin sees every appointment with its assigned physiotherapist, can filter and edit, and edits propagate to calendar and email.

@@ -2,6 +2,28 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { createTimeOffSchema } from "@/lib/validation";
 
+export async function GET(request: Request) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return NextResponse.json({ error: "Forbidden" }, { status: auth.status });
+
+  const { searchParams } = new URL(request.url);
+  const physioId = searchParams.get("physioId");
+  const from = searchParams.get("from");
+  const to = searchParams.get("to");
+
+  let query = auth.supabase
+    .from("time_off")
+    .select("id, physiotherapist_id, starts_at, ends_at, reason, physiotherapists(id, full_name, specialisation, photo_url)")
+    .order("starts_at", { ascending: true });
+  if (physioId) query = query.eq("physiotherapist_id", physioId);
+  if (from) query = query.gte("ends_at", from);
+  if (to) query = query.lte("starts_at", to);
+
+  const { data, error } = await query;
+  if (error) return NextResponse.json({ error: "Could not load time off" }, { status: 500 });
+  return NextResponse.json({ timeOff: data ?? [] });
+}
+
 export async function POST(request: Request) {
   const auth = await requireAdmin();
   if (!auth.ok) return NextResponse.json({ error: "Forbidden" }, { status: auth.status });

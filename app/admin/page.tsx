@@ -1,94 +1,69 @@
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import { format } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
-import { CalendarDays, CalendarRange, CalendarX2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { CLINIC_TZ } from "@/lib/tz";
-import { StatTile } from "@/components/admin/StatTile";
+import { addDaysToDateLabel, CLINIC_TZ } from "@/lib/tz";
+import {
+  DashboardWorkspace,
+  type DashboardAppointment,
+  type DashboardPhysio,
+} from "@/components/admin/DashboardWorkspace";
 
-export default async function AdminDashboardPage() {
+function validDateLabel(value: string | undefined, fallback: string): string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return fallback;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value ? fallback : value;
+}
+
+export default async function AdminDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
   const supabase = await createClient();
-  const localNow = toZonedTime(new Date(), CLINIC_TZ);
+  const { date: requestedDate } = await searchParams;
+  const clinicToday = format(toZonedTime(new Date(), CLINIC_TZ), "yyyy-MM-dd");
+  const selectedDate = validDateLabel(requestedDate, clinicToday);
+  const nextDay = addDaysToDateLabel(selectedDate, 1);
+  const sevenDaysLater = addDaysToDateLabel(clinicToday, 7);
+  const nowUtc = new Date().toISOString();
+  const monthStart = `${clinicToday.slice(0, 7)}-01`;
+  const [year, month] = clinicToday.slice(0, 7).split("-").map(Number);
+  const nextMonth = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
+  const dayStartUtc = fromZonedTime(`${selectedDate}T00:00:00`, CLINIC_TZ).toISOString();
+  const nextDayUtc = fromZonedTime(`${nextDay}T00:00:00`, CLINIC_TZ).toISOString();
+  const weekEndUtc = fromZonedTime(`${sevenDaysLater}T00:00:00`, CLINIC_TZ).toISOString();
+  const monthStartUtc = fromZonedTime(`${monthStart}T00:00:00`, CLINIC_TZ).toISOString();
+  const nextMonthUtc = fromZonedTime(`${nextMonth}T00:00:00`, CLINIC_TZ).toISOString();
 
-  const dayStart = fromZonedTime(startOfDay(localNow), CLINIC_TZ).toISOString();
-  const dayEnd = fromZonedTime(endOfDay(localNow), CLINIC_TZ).toISOString();
-  const weekStart = fromZonedTime(startOfWeek(localNow, { weekStartsOn: 1 }), CLINIC_TZ).toISOString();
-  const weekEnd = fromZonedTime(endOfWeek(localNow, { weekStartsOn: 1 }), CLINIC_TZ).toISOString();
-  const monthStart = fromZonedTime(startOfMonth(localNow), CLINIC_TZ).toISOString();
-  const monthEnd = fromZonedTime(endOfMonth(localNow), CLINIC_TZ).toISOString();
+  const [
+    { count: appointmentsToday, error: todayError },
+    { count: upcomingSevenDays, error: upcomingError },
+    { count: newPatients, error: patientsError },
+    { count: cancellations, error: cancellationsError },
+    { count: completed, error: completedError },
+    { data: appointmentRows, error: appointmentsError },
+    { data: physiotherapistRows, error: physiotherapistsError },
+  ] = await Promise.all([
+    supabase.from("appointments").select("id", { count: "exact", head: true }).neq("status", "cancelled").gte("starts_at", dayStartUtc).lt("starts_at", nextDayUtc),
+    supabase.from("appointments").select("id", { count: "exact", head: true }).in("status", ["confirmed", "rescheduled"]).gte("starts_at", nowUtc).lt("starts_at", weekEndUtc),
+    supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "patient").gte("created_at", monthStartUtc).lt("created_at", nextMonthUtc),
+    supabase.from("appointments").select("id", { count: "exact", head: true }).eq("status", "cancelled").gte("updated_at", monthStartUtc).lt("updated_at", nextMonthUtc),
+    supabase.from("appointments").select("id", { count: "exact", head: true }).eq("status", "completed").gte("updated_at", monthStartUtc).lt("updated_at", nextMonthUtc),
+    supabase.from("appointments").select("id, starts_at, ends_at, status, reason_for_visit, physiotherapist_id, patient:profiles!appointments_patient_id_fkey(full_name, email, phone), physiotherapists(full_name, specialisation)").gte("starts_at", dayStartUtc).lt("starts_at", nextDayUtc).order("starts_at", { ascending: true }),
+    supabase.from("physiotherapists").select("id, full_name, specialisation, is_active").eq("is_active", true).order("full_name"),
+  ]);
 
-  const [{ count: todayCount }, { count: weekCount }, { count: cancelledThisMonth }, { data: loadRows }] =
-    await Promise.all([
-      supabase
-        .from("appointments")
-        .select("*", { count: "exact", head: true })
-        .neq("status", "cancelled")
-        .gte("starts_at", dayStart)
-        .lte("starts_at", dayEnd),
-      supabase
-        .from("appointments")
-        .select("*", { count: "exact", head: true })
-        .neq("status", "cancelled")
-        .gte("starts_at", weekStart)
-        .lte("starts_at", weekEnd),
-      supabase
-        .from("appointments")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "cancelled")
-        .gte("starts_at", monthStart)
-        .lte("starts_at", monthEnd),
-      supabase
-        .from("appointments")
-        .select("physiotherapist_id, physiotherapists(full_name)")
-        .neq("status", "cancelled")
-        .gte("starts_at", weekStart)
-        .lte("starts_at", weekEnd),
-    ]);
-
-  const loadByPhysio = new Map<string, { name: string; count: number }>();
-  for (const row of (loadRows ?? []) as unknown as {
-    physiotherapist_id: string;
-    physiotherapists: { full_name: string } | null;
-  }[]) {
-    const key = row.physiotherapist_id;
-    const name = row.physiotherapists?.full_name ?? "Unknown";
-    const entry = loadByPhysio.get(key);
-    if (entry) entry.count += 1;
-    else loadByPhysio.set(key, { name, count: 1 });
-  }
-  const physioLoad = Array.from(loadByPhysio.values()).sort((a, b) => b.count - a.count);
+  const appointments = (appointmentRows ?? []) as unknown as DashboardAppointment[];
+  const physiotherapists = (physiotherapistRows ?? []) as DashboardPhysio[];
 
   return (
-    <main className="mx-auto w-full max-w-[1120px] flex-1 px-6 py-16">
-      <h1 className="text-[32px] font-bold leading-[38px] tracking-[-0.025em] text-ink">
-        Dashboard
-      </h1>
-
-      <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-3">
-        <StatTile label="Appointments today" value={todayCount ?? 0} icon={CalendarDays} />
-        <StatTile label="Appointments this week" value={weekCount ?? 0} icon={CalendarRange} />
-        <StatTile
-          label="Cancellations this month"
-          value={cancelledThisMonth ?? 0}
-          icon={CalendarX2}
-        />
-      </div>
-
-      <h2 className="mt-12 text-[18px] font-semibold leading-6 tracking-[-0.01em] text-ink">
-        Load this week, by physiotherapist
-      </h2>
-
-      {physioLoad.length === 0 ? (
-        <p className="mt-4 text-[15px] text-ink-soft">No appointments booked this week.</p>
-      ) : (
-        <div className="mt-4 flex flex-col divide-y divide-line rounded-card border border-line bg-paper">
-          {physioLoad.map((p) => (
-            <div key={p.name} className="flex items-center justify-between px-5 py-3">
-              <span className="text-[15px] text-ink">{p.name}</span>
-              <span className="text-[15px] font-medium tabular-nums text-ink">{p.count}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </main>
+    <DashboardWorkspace
+      selectedDate={selectedDate}
+      clinicToday={clinicToday}
+      appointments={appointments}
+      physiotherapists={physiotherapists}
+      queryError={Boolean(todayError || upcomingError || patientsError || cancellationsError || completedError || appointmentsError || physiotherapistsError)}
+      metrics={{ appointmentsToday, upcomingSevenDays, newPatients, cancellations, completed }}
+    />
   );
 }

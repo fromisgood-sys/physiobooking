@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { IdleSessionGuard } from "@/components/auth/IdleSessionGuard";
 import "./globals.css";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -28,7 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col"><IdleSessionGuard />{children}</body>
     </html>
   );
 }

@@ -47,7 +47,7 @@ export default function PrivacyPage() {
             To create your account, show you available appointment times, confirm and manage your
             bookings, send you email confirmations, and create the matching calendar event.
             Clinic staff (receptionists/admins) can see appointment details in order to run the
-            clinic's schedule. We do not sell your information or use it for advertising.
+            clinic&apos;s schedule. We do not sell your information or use it for advertising.
           </p>
         </section>
 
@@ -55,7 +55,8 @@ export default function PrivacyPage() {
           <h2 className="text-[18px] font-semibold text-ink">Email notifications</h2>
           <p className="mt-2">
             Booking confirmations, reschedules, and cancellations are sent by email to you and to
-            the clinic's reception inbox via a third-party form-to-email service (Formspree).
+            the clinic&apos;s configured reception inbox using its Gmail SMTP account. The individual
+            physiotherapist is not an email recipient.
           </p>
         </section>
 
@@ -64,14 +65,14 @@ export default function PrivacyPage() {
           <p className="mt-2">
             Cancelled appointments are kept as history, not deleted, so both you and the clinic
             have an accurate record. Your Google Calendar tokens are stored only to maintain your
-            calendar events and are never shared with anyone besides the clinic's systems.
+            calendar events and are never shared with anyone besides the clinic&apos;s systems.
           </p>
         </section>
 
         <section>
           <h2 className="text-[18px] font-semibold text-ink">Contact</h2>
           <p className="mt-2">
-            Questions about your data can be sent to the clinic's reception email address.
+            Questions about your data can be sent to the clinic&apos;s reception email address.
           </p>
         </section>
       </div>

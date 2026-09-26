@@ -1,86 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { format, startOfMonth } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
+import { Activity, CalendarDays, ChevronLeft, ChevronRight, Download, FileText, RotateCcw, Search, Shield, UserRound, Users, X } from "lucide-react";
+import { CLINIC_TZ } from "@/lib/tz";
 
-interface AuditRow {
-  id: number;
-  appointment_id: string;
-  action: string;
-  created_at: string;
-  changed_by: { full_name: string | null; email: string } | null;
-}
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable react-hooks/exhaustive-deps */
+
+type UserOption = { id: string; full_name: string | null; email: string };
+type AuditRow = { id: string; appointment_id: string; reference: string; module: string; summary: string; action: string; old_values: Record<string, unknown> | null; new_values: Record<string, unknown> | null; created_at: string; changed_by_profile: { full_name: string | null; email: string; role?: string } | null };
+type Metrics = { total: number; users: number; appointments: number; patientRecords: number; securityEvents: number };
+const today = toZonedTime(new Date(), CLINIC_TZ); const initialFrom = format(startOfMonth(today), "yyyy-MM-dd"); const initialTo = format(today, "yyyy-MM-dd");
+const actionLabels: Record<string, string> = { created: "Created", updated: "Updated", cancelled: "Cancelled", rescheduled: "Rescheduled", status_changed: "Status Changed" };
+const actionTone: Record<string, string> = { created: "bg-[#e5f4ee] text-[#287c68]", updated: "bg-[#e5f4f2] text-[#107f7b]", cancelled: "bg-[#fff0ef] text-[#b33c38]", rescheduled: "bg-[#eaf2fb] text-[#3972a9]", status_changed: "bg-[#f1f6f7] text-[#617988]" };
+function initials(name: string) { return name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase(); }
+function Metric({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: number; tone: string }) { return <div className="rounded-[9px] border border-[#e1e8eb] bg-white p-4 shadow-[0_2px_8px_rgba(14,17,22,0.04)]"><div className="flex items-center gap-3"><span className={`flex h-9 w-9 items-center justify-center rounded-full ${tone}`} aria-hidden="true">{icon}</span><div><p className="text-[10px] font-semibold text-[#718596]">{label}</p><p className="mt-1 text-[23px] font-bold tabular-nums text-[#19364c]">{value}</p></div></div></div>; }
 
 export default function AdminAuditPage() {
-  const [rows, setRows] = useState<AuditRow[] | null>(null);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const pageSize = 30;
-
-  useEffect(() => {
-    fetch(`/api/admin/audit?page=${page}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setRows(data.rows ?? []);
-        setTotal(data.total ?? 0);
-      })
-      .catch(() => setRows([]));
-  }, [page]);
-
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-  return (
-    <main className="mx-auto w-full max-w-[1120px] flex-1 px-6 py-16">
-      <h1 className="text-[32px] font-bold leading-[38px] tracking-[-0.025em] text-ink">
-        Audit log
-      </h1>
-
-      {rows === null && <p className="mt-8 text-[15px] text-ink-soft">Loading&hellip;</p>}
-      {rows !== null && rows.length === 0 && (
-        <p className="mt-8 text-[15px] text-ink-soft">No changes recorded yet.</p>
-      )}
-
-      {rows !== null && rows.length > 0 && (
-        <div className="mt-8 flex flex-col gap-3">
-          {rows.map((row) => (
-            <div key={row.id} className="rounded-card border border-line bg-paper p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-[15px] font-medium capitalize text-ink">
-                  {row.action.replace("_", " ")}
-                </p>
-                <p className="text-[13px] tabular-nums text-ink-muted">
-                  {new Date(row.created_at).toLocaleString()}
-                </p>
-              </div>
-              <p className="mt-1 text-[15px] text-ink-soft">
-                By {row.changed_by?.full_name ?? row.changed_by?.email ?? "system"} &middot;
-                appointment {row.appointment_id.slice(0, 8)}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-6 flex items-center justify-between">
-        <button
-          type="button"
-          disabled={page <= 1}
-          onClick={() => setPage((p) => p - 1)}
-          className="flex h-11 items-center justify-center rounded-btn border border-line-strong bg-paper px-4 text-[15px] font-medium text-ink disabled:opacity-50"
-        >
-          Previous
-        </button>
-        <p className="text-[15px] text-ink-soft">
-          Page {page} of {totalPages}
-        </p>
-        <button
-          type="button"
-          disabled={page >= totalPages}
-          onClick={() => setPage((p) => p + 1)}
-          className="flex h-11 items-center justify-center rounded-btn border border-line-strong bg-paper px-4 text-[15px] font-medium text-ink disabled:opacity-50"
-        >
-          Next
-        </button>
-      </div>
-    </main>
-  );
+  const [draft, setDraft] = useState({ from: initialFrom, to: initialTo, user: "", action: "", q: "" }); const [filters, setFilters] = useState(draft); const [users, setUsers] = useState<UserOption[]>([]); const [rows, setRows] = useState<AuditRow[] | null>(null); const [metrics, setMetrics] = useState<Metrics | null>(null); const [total, setTotal] = useState(0); const [page, setPage] = useState(1); const [pageSize, setPageSize] = useState(20); const [selected, setSelected] = useState<AuditRow | null>(null); const [error, setError] = useState(false);
+  const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) }); Object.entries(filters).forEach(([key, value]) => { if (value) query.set(key, value); }); const exportHref = `/api/admin/audit/export?${new URLSearchParams(Object.entries(filters).filter((entry) => Boolean(entry[1])))}`;
+  useEffect(() => { fetch("/api/admin/audit?options=1").then((res) => res.json()).then((data) => setUsers(data.users ?? [])); }, []);
+  useEffect(() => { setRows(null); setError(false); const queryString = query.toString(); Promise.all([fetch(`/api/admin/audit?${queryString}`).then((res) => { if (!res.ok) throw new Error(); return res.json(); }), fetch(`/api/admin/audit?metrics=1&${new URLSearchParams(Object.entries(filters))}`).then((res) => { if (!res.ok) throw new Error(); return res.json(); })]).then(([data, metricData]) => { setRows(data.rows ?? []); setTotal(data.total ?? 0); setMetrics(metricData.metrics ?? null); }).catch(() => { setRows([]); setError(true); }); }, [page, pageSize, filters.from, filters.to, filters.user, filters.action, filters.q]);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize)); const actionOptions = ["created", "updated", "cancelled", "rescheduled", "status_changed"];
+  function apply() { setPage(1); setFilters(draft); } function reset() { const next = { from: initialFrom, to: initialTo, user: "", action: "", q: "" }; setDraft(next); setFilters(next); setPage(1); }
+  return <main className="mx-auto w-full max-w-[1180px] pb-8"><header className="flex flex-wrap items-start justify-between gap-4 border-b border-[#e1e8eb] pb-5"><div><h1 className="text-[28px] font-bold tracking-[-0.025em] text-[#183247]">Audit Log</h1><p className="mt-1 text-[12px] text-[#718596]">Track important actions and changes made in the system.</p></div><a href={exportHref} className="flex h-10 items-center gap-2 rounded-[8px] border border-[#a8d2ce] px-4 text-[11px] font-semibold text-[#107f7b]"><Download className="h-4 w-4" />Export Logs</a></header><div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{metrics ? <><Metric icon={<Activity />} label="Total Actions" value={metrics.total} tone="bg-[#eaf2fb] text-[#3972a9]" /><Metric icon={<UserRound />} label="Users" value={metrics.users} tone="bg-[#e5f4ee] text-[#258261]" /><Metric icon={<CalendarDays />} label="Appointments" value={metrics.appointments} tone="bg-[#f0e9fb] text-[#7852bc]" /><Metric icon={<Users />} label="Patient Records" value={metrics.patientRecords} tone="bg-[#fff0df] text-[#c67a2c]" /><Metric icon={<Shield />} label="Security Events" value={metrics.securityEvents} tone="bg-[#fff0ef] text-[#c64a47]" /></> : [1, 2, 3, 4, 5].map((item) => <div key={item} className="h-24 animate-pulse rounded-[9px] bg-[#f0f4f5]" />)}</div><section className="mt-5 rounded-[9px] border border-[#dce5e9] bg-white p-4"><div className="grid gap-2 md:grid-cols-[1.2fr_1fr_1fr_1fr_1.4fr_auto]"><label className="text-[10px] font-semibold text-[#50697b]">Date Range<span className="mt-1 flex items-center gap-1 rounded-[7px] border border-[#dce5e9] px-2"><input type="date" value={draft.from} onChange={(event) => setDraft({ ...draft, from: event.target.value })} className="h-8 min-w-0 flex-1 text-[10px] outline-none" /><span>-</span><input type="date" value={draft.to} onChange={(event) => setDraft({ ...draft, to: event.target.value })} className="h-8 min-w-0 flex-1 text-[10px] outline-none" /></span></label><label className="text-[10px] font-semibold text-[#50697b]">User<select aria-label="Filter audit user" value={draft.user} onChange={(event) => setDraft({ ...draft, user: event.target.value })} className="mt-1 h-10 w-full rounded-[7px] border border-[#dce5e9] px-3 text-[10px]"><option value="">All Users</option>{users.map((user) => <option key={user.id} value={user.id}>{user.full_name ?? user.email}</option>)}</select></label><label className="text-[10px] font-semibold text-[#50697b]">Action<select aria-label="Filter audit action" value={draft.action} onChange={(event) => setDraft({ ...draft, action: event.target.value })} className="mt-1 h-10 w-full rounded-[7px] border border-[#dce5e9] px-3 text-[10px]"><option value="">All Actions</option>{actionOptions.map((action) => <option key={action} value={action}>{actionLabels[action]}</option>)}</select></label><div className="hidden md:block"><span className="block text-[10px] font-semibold text-[#50697b]">Module</span><span className="mt-1 flex h-10 items-center rounded-[7px] border border-[#dce5e9] px-3 text-[10px] text-[#81939e]">Appointment only</span></div><label className="text-[10px] font-semibold text-[#50697b]">Search<span className="relative mt-1 block"><Search className="absolute left-3 top-3 h-3.5 w-3.5 text-[#81939e]" /><input aria-label="Search audit log" value={draft.q} onChange={(event) => setDraft({ ...draft, q: event.target.value })} placeholder="Search by description or ID..." className="h-10 w-full rounded-[7px] border border-[#dce5e9] pl-9 pr-2 text-[10px] outline-none" /></span></label><div className="flex items-end gap-2"><button type="button" onClick={reset} className="h-10 rounded-[7px] border border-[#dce5e9] px-3 text-[10px] font-semibold text-[#536c7b]"><RotateCcw className="inline h-3 w-3" /> Reset</button><button type="button" onClick={apply} className="h-10 rounded-[7px] bg-[#107f7b] px-3 text-[10px] font-semibold text-white">Apply Filters</button></div></div></section><section className="mt-5 overflow-hidden rounded-[9px] border border-[#e1e8eb] bg-white">{error && <p className="p-10 text-center text-[12px] text-[#b33c38]">Couldn&apos;t load audit entries. <button type="button" onClick={apply} className="font-semibold underline">Try again</button></p>}{rows === null && !error && <div className="space-y-3 p-5">{[1, 2, 3, 4, 5, 6].map((item) => <div key={item} className="h-12 animate-pulse rounded bg-[#f0f4f5]" />)}</div>}{rows?.length === 0 && !error && <div className="p-12 text-center"><FileText className="mx-auto h-8 w-8 text-[#9babb4]" /><h2 className="mt-3 text-[13px] font-semibold text-[#29485c]">No audit entries found</h2><p className="mt-1 text-[11px] text-[#81939e]">No records match the current filters.</p><button type="button" onClick={reset} className="mt-4 text-[11px] font-semibold text-[#107f7b]">Reset Filters</button></div>}{rows && rows.length > 0 && <div className="overflow-x-auto"><table className="w-full min-w-[950px] border-collapse text-left"><thead><tr className="border-b border-[#edf1f2] bg-[#fbfcfc] text-[9px] font-semibold text-[#718596]"><th className="px-4 py-3">Date &amp; Time</th><th>User</th><th>Action</th><th>Module</th><th>Record</th><th>Details</th><th>IP Address</th><th>Actions</th></tr></thead><tbody>{rows.map((row) => { const profile = row.changed_by_profile; const changed = row.new_values ? Object.keys(row.new_values).filter((key) => JSON.stringify(row.old_values?.[key]) !== JSON.stringify(row.new_values?.[key])) : []; const detail = row.action === "rescheduled" ? "Appointment rescheduled" : row.action.replaceAll("_", " "); return <tr key={row.id} aria-selected={selected?.id === row.id} onClick={() => setSelected(row)} className={`cursor-pointer border-b border-[#edf1f2] text-[10px] last:border-0 ${selected?.id === row.id ? "border-l-2 border-l-[#168884] bg-[#f0f9f7]" : "hover:bg-[#fbfdfd]"}`}><td className="px-4 py-3 tabular-nums">{format(toZonedTime(new Date(row.created_at), CLINIC_TZ), "d MMM yyyy, HH:mm")}</td><td><div className="flex items-center gap-2"><span aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-full bg-[#e5f4f2] text-[9px] font-bold text-[#107f7b]">{initials(profile?.full_name ?? "System")}</span><span><span className="block font-semibold text-[#29485c]">{profile?.full_name ?? "System"}</span><span className="block text-[9px] text-[#81939e]">{profile?.email ?? ""}</span></span></div></td><td><span className={`rounded-[5px] px-2 py-1 text-[9px] font-semibold ${actionTone[row.action] ?? "bg-[#f1f6f7] text-[#617988]"}`}>{actionLabels[row.action] ?? row.action.replaceAll("_", " ")}</span></td><td><span className="flex items-center gap-1 text-[#536c7b]"><CalendarDays className="h-3 w-3" />Appointment</span></td><td className="font-medium tabular-nums text-[#536c7b]">{row.appointment_id.slice(0, 8)}</td><td className="max-w-[180px] truncate text-[#536c7b]" title={detail}>{detail}{changed.length ? ` · ${changed.length} field${changed.length === 1 ? "" : "s"} changed` : ""}</td><td className="text-[#81939e]">—</td><td><button type="button" aria-label="View audit details" onClick={(event) => { event.stopPropagation(); setSelected(row); }} className="rounded border border-[#dce5e9] px-3 py-1.5 text-[10px] font-semibold text-[#107f7b]">View</button></td></tr>; })}</tbody></table></div>}{rows && rows.length > 0 && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#edf1f2] px-4 py-3 text-[10px] text-[#718596]"><span>Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, total)} of {total} results</span><div className="flex items-center gap-2"><label>Rows<select aria-label="Rows per page" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className="ml-1 rounded border px-1 py-1"><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option></select></label><button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((value) => value - 1)} className="h-7 w-7 rounded border disabled:opacity-35"><ChevronLeft className="mx-auto h-3.5 w-3.5" /></button>{page} / {totalPages}<button type="button" aria-label="Next page" disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)} className="h-7 w-7 rounded border disabled:opacity-35"><ChevronRight className="mx-auto h-3.5 w-3.5" /></button></div></div>}</section>{selected && <AuditDetails row={selected} onClose={() => setSelected(null)} />}</main>;
 }
+
+function AuditDetails({ row, onClose }: { row: AuditRow; onClose: () => void }) { const profile = row.changed_by_profile; return <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-[420px] overflow-y-auto border-l border-[#dce5e9] bg-white p-5 shadow-[-4px_0_18px_rgba(25,53,70,0.1)]"><div className="flex items-start justify-between"><div><h2 className="text-[17px] font-bold text-[#19364c]">Audit Details</h2><p className="mt-1 text-[10px] text-[#81939e]">Immutable record {row.id}</p></div><button type="button" aria-label="Close audit details" onClick={onClose} className="p-1"><X className="h-5 w-5 text-[#617988]" /></button></div><div className="mt-6 space-y-4 text-[10px]"><Detail label="Date and time" value={format(toZonedTime(new Date(row.created_at), CLINIC_TZ), "d MMM yyyy, HH:mm")} /><Detail label="User" value={`${profile?.full_name ?? "System"} · ${profile?.email ?? ""}`} /><Detail label="Action" value={actionLabels[row.action] ?? row.action} /><Detail label="Module" value={row.module} /><Detail label="Record reference" value={row.reference} /><Detail label="Summary" value={row.summary} /><Detail label="IP address" value="Not captured" /><section><h3 className="font-bold text-[#29485c]">Change data</h3><pre className="mt-2 max-h-80 overflow-auto rounded-[7px] bg-[#f1f6f7] p-3 text-[9px] leading-4 text-[#536c7b]">{safeAuditJson(row.old_values, row.new_values)}</pre></section></div></aside>; }
+function Detail({ label, value }: { label: string; value: string }) { return <div className="border-b border-[#edf1f2] pb-3"><span className="block text-[#81939e]">{label}</span><strong className="mt-1 block font-medium text-[#29485c]">{value}</strong></div>; }
+
+function safeAuditJson(previous: Record<string, unknown> | null, next: Record<string, unknown> | null) {
+  const mask = (value: Record<string, unknown> | null) => Object.fromEntries(Object.entries(value ?? {}).map(([key, item]) => /token|secret|password|api[_-]?key|credential/i.test(key) ? [key, "[masked]"] : [key, item]));
+  return JSON.stringify({ previous: mask(previous), new: mask(next) }, null, 2);
+}
+
+/* eslint-enable react-hooks/set-state-in-effect */
+/* eslint-enable react-hooks/exhaustive-deps */

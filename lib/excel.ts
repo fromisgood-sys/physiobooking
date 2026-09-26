@@ -51,3 +51,57 @@ export async function buildAppointmentsWorkbook(rows: ExportRow[]): Promise<Buff
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);
 }
+
+export interface PatientExportRow {
+  patient_name: string;
+  phone: string;
+  email: string;
+  appointments: number;
+  last_appointment: string;
+}
+
+export async function buildPatientsWorkbook(rows: PatientExportRow[]): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Patients");
+  sheet.columns = [
+    { header: "Patient", key: "patient_name" },
+    { header: "Phone", key: "phone" },
+    { header: "Email", key: "email" },
+    { header: "Appointments", key: "appointments" },
+    { header: "Last appointment", key: "last_appointment" },
+  ];
+  sheet.getRow(1).font = { bold: true };
+  sheet.views = [{ state: "frozen", ySplit: 1 }];
+  rows.forEach((row) => sheet.addRow(row));
+  sheet.columns.forEach((column) => { column.width = 20; });
+  return Buffer.from(await workbook.xlsx.writeBuffer());
+}
+
+export interface AuditExportRow {
+  date_time: string;
+  user: string;
+  email: string;
+  action: string;
+  module: string;
+  record_reference: string;
+  details: string;
+}
+
+export async function buildAuditWorkbook(rows: AuditExportRow[]): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Audit Log");
+  sheet.columns = [
+    { header: "Date and time", key: "date_time" },
+    { header: "User", key: "user" },
+    { header: "Email", key: "email" },
+    { header: "Action", key: "action" },
+    { header: "Module", key: "module" },
+    { header: "Record reference", key: "record_reference" },
+    { header: "Details", key: "details" },
+  ];
+  sheet.getRow(1).font = { bold: true };
+  sheet.views = [{ state: "frozen", ySplit: 1 }];
+  rows.forEach((row) => sheet.addRow(row));
+  sheet.columns.forEach((column) => { column.width = 22; });
+  return Buffer.from(await workbook.xlsx.writeBuffer());
+}

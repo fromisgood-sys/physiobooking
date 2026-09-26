@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { toZonedTime } from "date-fns-tz";
 import { CLINIC_OPEN, CLINIC_CLOSE, SESSION_MINUTES } from "./tz";
+import { isValidInternationalPhone, normalizeAdminPhone, normalizeInternationalPhone } from "./phone";
 
 export const createAppointmentSchema = z.object({
   physioId: z.string().uuid(),
@@ -9,6 +10,35 @@ export const createAppointmentSchema = z.object({
   reasonForVisit: z.string().trim().max(500).optional(),
 });
 
+export { normalizeAdminPhone };
+
+const adminPhoneSchema = z
+  .string()
+  .trim()
+  .refine(isValidInternationalPhone, "Enter a valid telephone number")
+  .transform((phone) => normalizeInternationalPhone(phone) ?? phone);
+
+export const adminNewPatientDetailsSchema = z.object({
+  firstName: z.string().trim().min(1, "Enter a first name").max(100),
+  lastName: z.string().trim().min(1, "Enter a last name").max(100),
+  email: z.string().trim().email("Enter a valid email address").max(254).transform((email) => email.toLowerCase()),
+  phone: adminPhoneSchema,
+});
+
+export const adminCreateAppointmentSchema = z.object({
+  patient: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("existing"), patientId: z.string().uuid(), phone: adminPhoneSchema }),
+    z.object({ kind: z.literal("new") }).extend(adminNewPatientDetailsSchema.shape),
+  ]),
+  physioId: z.string().uuid(),
+  startUtc: z.string().datetime(),
+  reasonForVisit: z.string().trim().min(1, "Enter a reason for visit").max(500),
+  commentsForPhysiotherapist: z.string().trim().max(500).optional(),
+  sendConfirmation: z.boolean().default(true),
+});
+
+export type AdminCreateAppointmentInput = z.infer<typeof adminCreateAppointmentSchema>;
+
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 
 export const rescheduleAppointmentSchema = z.object({
@@ -16,6 +46,29 @@ export const rescheduleAppointmentSchema = z.object({
 });
 
 export type RescheduleAppointmentInput = z.infer<typeof rescheduleAppointmentSchema>;
+
+const namibianPhoneSchema = z
+  .string()
+  .trim()
+  .transform((phone) => {
+    const digits = phone.replace(/\D/g, "");
+    if (phone.trim().startsWith("+")) return `+${digits}`;
+    if (digits.startsWith("264")) return `+${digits}`;
+    if (digits.startsWith("0")) return `+264${digits.slice(1)}`;
+    return phone.trim();
+  })
+  .pipe(z.string().regex(/^\+[1-9]\d{6,14}$/, "Enter a valid cellphone number"));
+
+export const rescheduleWithDetailsSchema = z.object({
+  startUtc: z.string().datetime(),
+  phone: namibianPhoneSchema,
+  reasonForVisit: z.string().trim().max(500),
+});
+
+export const updateBookingDetailsSchema = z.object({
+  phone: z.string().trim().min(6, "Enter a valid phone number").max(30),
+  reasonForVisit: z.string().trim().max(500),
+});
 
 export const adminUpdateAppointmentSchema = z
   .object({
@@ -41,6 +94,22 @@ export const physiotherapistSchema = z.object({
 export const physiotherapistUpdateSchema = physiotherapistSchema
   .partial()
   .extend({ is_active: z.boolean().optional() });
+
+export const clinicSettingsSchema = z.object({
+  clinic_name: z.string().trim().min(1).max(200),
+  phone: z.string().trim().min(3).max(40),
+  email: z.string().trim().email(),
+  website: z.string().trim().url().or(z.literal("")),
+  address: z.string().trim().min(1).max(300),
+  city: z.string().trim().min(1).max(100),
+  region: z.string().trim().max(100),
+  postal_code: z.string().trim().max(30),
+  about: z.string().trim().max(500),
+  timezone: z.string().trim().min(1).max(100),
+  time_format: z.enum(["12h", "24h"]),
+  date_format: z.enum(["dd MMM yyyy", "dd/MM/yyyy", "MM/dd/yyyy", "yyyy-MM-dd"]),
+  logo_url: z.string().url().nullable(),
+});
 
 export const weeklyRuleSchema = z.object({
   weekday: z.number().int().min(0).max(6),

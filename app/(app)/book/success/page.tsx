@@ -4,9 +4,16 @@ import { Check } from "lucide-react";
 export default async function BookingSuccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ref?: string }>;
+  searchParams: Promise<{ ref?: string; email?: string }>;
 }) {
-  const { ref } = await searchParams;
+  const { ref, email } = await searchParams;
+  const emailMessage = email === "sent"
+    ? "Your confirmation email has been sent."
+    : email === "failed"
+      ? "Your appointment is confirmed, but the confirmation email could not be sent. Please contact reception."
+      : email === "not_configured"
+        ? "Your appointment is confirmed. Email is not configured in this environment; please contact reception for confirmation."
+        : "Your appointment is confirmed.";
 
   return (
     <main className="mx-auto flex w-full max-w-[1120px] flex-1 flex-col items-center px-6 py-16 text-center">
@@ -21,7 +28,7 @@ export default async function BookingSuccessPage({
         {ref ?? "—"}
       </p>
       <p className="mt-4 max-w-sm text-[15px] leading-6 text-ink-soft">
-        Your appointment is confirmed. You&rsquo;ll get a confirmation email shortly.
+        {emailMessage}
       </p>
       <Link
         href="/appointments"

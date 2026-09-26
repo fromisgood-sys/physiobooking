@@ -6,6 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSlots } from "@/lib/slots";
 import {
   rescheduleAppointmentSchema,
+  rescheduleWithDetailsSchema,
+  updateBookingDetailsSchema,
   adminUpdateAppointmentSchema,
   isPastInstant,
   isOnBookableGrid,
@@ -66,13 +68,28 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const isAdmin = callerProfile?.role === "admin";
 
   const body = await request.json().catch(() => null);
-  const schema = isAdmin ? adminUpdateAppointmentSchema : rescheduleAppointmentSchema;
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) {
+  const isObjectPayload = typeof body === "object" && body !== null;
+  const includesStartUtc = isObjectPayload && "startUtc" in body;
+  const includesPatientDetails =
+    isObjectPayload && ("phone" in body || "reasonForVisit" in body);
+  const isCombinedReschedule = !isAdmin && includesStartUtc && includesPatientDetails;
+  const isDetailsOnlyUpdate = !isAdmin && !includesStartUtc && includesPatientDetails;
+  const rescheduleDetailsParsed = isCombinedReschedule
+    ? rescheduleWithDetailsSchema.safeParse(body)
+    : null;
+  const parsed = isAdmin
+    ? adminUpdateAppointmentSchema.safeParse(body)
+    : isCombinedReschedule
+      ? rescheduleDetailsParsed
+      : rescheduleAppointmentSchema.safeParse(body);
+  const detailsParsed = isDetailsOnlyUpdate
+    ? updateBookingDetailsSchema.safeParse(body)
+    : null;
+  if (!parsed?.success && !detailsParsed?.success) {
     return NextResponse.json({ error: "Invalid update details" }, { status: 400 });
   }
-  // Only admins can send physioId/status/notes; a patient's payload only ever has startUtc.
-  const data = parsed.data as Partial<
+  // Only admins can send physioId/status/notes; patients can reschedule or update their own details.
+  const data = (parsed?.success ? parsed.data : {}) as Partial<
     { startUtc: string; physioId: string; status: "completed" | "no_show"; notes: string | null }
   >;
 
@@ -86,6 +103,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       { error: "This appointment can no longer be edited." },
       { status: 400 }
     );
+  }
+
+  if (detailsParsed?.success && !rescheduleDetailsParsed?.success) {
+    if (!ACTIVE_STATUSES.includes(existing.status) || new Date(existing.ends_at) <= new Date()) {
+      return NextResponse.json(
+        { error: "This appointment can no longer be edited." },
+        { status: 400 }
+      );
+    }
+
+    const [{ error: appointmentUpdateError }, { error: profileUpdateError }] = await Promise.all([
+      supabase
+        .from("appointments")
+        .update({ reason_for_visit: detailsParsed.data.reasonForVisit || null })
+        .eq("id", id)
+        .eq("patient_id", user.id),
+      supabase
+        .from("profiles")
+        .update({ phone: detailsParsed.data.phone })
+        .eq("id", user.id),
+    ]);
+
+    if (appointmentUpdateError || profileUpdateError) {
+      return NextResponse.json({ error: "Could not update booking details" }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
   }
 
   const changesTimeOrPhysio =
@@ -131,7 +175,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           patientEmail: profile?.email ?? "",
           patientPhone: profile?.phone ?? "",
           physiotherapistName: physio.full_name,
-          physiotherapistEmail: physio.email,
           date: format(localStart, "yyyy-MM-dd"),
           startTime: format(localStart, "HH:mm"),
           endTime: format(localEnd, "HH:mm"),
@@ -220,6 +263,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     physiotherapist_id: targetPhysioId,
     status: "rescheduled",
   };
+  if (rescheduleDetailsParsed?.success) {
+    updatePatch.reason_for_visit = rescheduleDetailsParsed.data.reasonForVisit || null;
+  }
   if (isAdmin && data.notes !== undefined) updatePatch.notes = data.notes;
 
   const { data: updated, error: updateError } = await supabase
@@ -241,12 +287,25 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const physio = targetPhysio;
   const reference = appointmentReference(updated.id);
+  const reasonForVisit = rescheduleDetailsParsed?.success
+    ? rescheduleDetailsParsed.data.reasonForVisit || null
+    : existing.reason_for_visit;
+
+  let phoneUpdated = true;
+  if (rescheduleDetailsParsed?.success) {
+    const { error: phoneUpdateError } = await supabase
+      .from("profiles")
+      .update({ phone: rescheduleDetailsParsed.data.phone })
+      .eq("id", user.id);
+    phoneUpdated = !phoneUpdateError;
+    if (phoneUpdateError) console.warn("[appointments] cellphone update failed after reschedule", phoneUpdateError);
+  }
 
   if (existing.google_event_id) {
     await updateEvent(existing.patient_id, existing.google_event_id, {
       physiotherapistName: physio.full_name,
       physiotherapistEmail: physio.email,
-      reasonForVisit: existing.reason_for_visit,
+      reasonForVisit,
       reference,
       startUtc: updated.starts_at,
       endUtc: updated.ends_at,
@@ -269,11 +328,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     patientEmail: profile?.email ?? "",
     patientPhone: profile?.phone ?? "",
     physiotherapistName: physio.full_name,
-    physiotherapistEmail: physio.email,
     date: format(localStart, "yyyy-MM-dd"),
     startTime: format(localStart, "HH:mm"),
     endTime: format(localEnd, "HH:mm"),
-    reasonForVisit: existing.reason_for_visit,
+    reasonForVisit,
     status: "rescheduled",
   });
 
@@ -282,6 +340,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     reference,
     startUtc: updated.starts_at,
     endUtc: updated.ends_at,
+    phoneUpdated,
+    phone: phoneUpdated && rescheduleDetailsParsed?.success ? rescheduleDetailsParsed.data.phone : undefined,
+    reasonForVisit,
   });
 }
 
@@ -337,7 +398,6 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       patientEmail: profile?.email ?? "",
       patientPhone: profile?.phone ?? "",
       physiotherapistName: physio.full_name,
-      physiotherapistEmail: physio.email,
       date: format(localStart, "yyyy-MM-dd"),
       startTime: format(localStart, "HH:mm"),
       endTime: format(localEnd, "HH:mm"),

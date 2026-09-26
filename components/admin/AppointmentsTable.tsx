@@ -39,7 +39,7 @@ const COLUMNS = [
   "Actions",
 ];
 
-const EMPTY_FILTERS: AdminFiltersValue = { dateFrom: "", dateTo: "", physioId: "", status: "", q: "" };
+const EMPTY_FILTERS: AdminFiltersValue = { dateFrom: "", dateTo: "", timeOfDay: "all", physioId: "", status: "", q: "" };
 const ACTIVE_STATUSES = ["confirmed", "rescheduled"];
 
 export function AppointmentsTable() {

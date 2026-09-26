@@ -1,10 +1,10 @@
 # Physio Booking
 
-Book a 45-minute physiotherapy session, manage it afterwards, and run the clinic's admin side — built with Next.js, Supabase, Google Calendar, and Formspree. See `physio-booking-app-spec.md` for the full spec, `DESIGN.md` for the visual system, and `DECISIONS.md` for judgement calls made where either was silent.
+Book a 45-minute physiotherapy session, manage it afterwards, and run the clinic's admin side — built with Next.js, Supabase, Google Calendar, and Gmail SMTP. See `physio-booking-app-spec.md` for the full spec, `DESIGN.md` for the visual system, and `DECISIONS.md` for judgement calls made where either was silent.
 
 ## Stack
 
-Next.js 16 (App Router, TypeScript) · Tailwind v4 · shadcn/ui · Supabase (Postgres, RLS, Auth) · Google Calendar API v3 · Formspree · `exceljs` · `date-fns` / `date-fns-tz` · Vercel
+Next.js 16 (App Router, TypeScript) · Tailwind v4 · shadcn/ui · Supabase (Postgres, RLS, Auth) · Google Calendar API v3 · Gmail SMTP (`nodemailer`) · `exceljs` · `date-fns` / `date-fns-tz` · Vercel
 
 ## 1. Local setup
 
@@ -38,10 +38,14 @@ Fill in `.env` using the steps below before `npm run dev` will do anything usefu
 
 The app requests `openid email profile https://www.googleapis.com/auth/calendar.events` with `access_type=offline&prompt=consent` (see `app/actions/auth.ts`) so a refresh token is issued every sign-in. If a patient declines the calendar scope, booking still succeeds — the calendar step is just skipped (`lib/google-calendar.ts`).
 
-## 4. Formspree
+## 4. Gmail SMTP notifications
 
-1. [formspree.io](https://formspree.io) → new form. Copy its endpoint (`https://formspree.io/f/xxxxxxxx`) into `FORMSPREE_ENDPOINT`.
-2. Set `RECEPTION_EMAIL` to the clinic's reception inbox — every booking event sends a copy there in addition to the patient. All notification sending goes through `lib/notify.ts`, server-side only.
+1. Enable 2-Step Verification for the clinic's Google account, then create a Google App Password. Do not use the account's regular password.
+2. Configure `SMTP_USER`, `SMTP_PASSWORD`, and `RECEPTION_EMAIL`. `SMTP_HOST` defaults to `smtp.gmail.com`, `SMTP_PORT` defaults to `465`, and `SMTP_FROM` defaults to `SMTP_USER`.
+3. For local development, put these values in `.env`. Vercel Production environment variables are only available in deployed Vercel functions; they do not configure `localhost`.
+4. In Vercel, set the same variables under **Project Settings → Environment Variables** for every environment that needs to send email, then redeploy.
+
+All notification events use the shared server-side `lib/notify.ts` helper. Patient messages go to the patient; a separate copy goes only to `RECEPTION_EMAIL`. Physiotherapists are not email recipients. Missing SMTP configuration or delivery failures never roll back a saved appointment.
 
 ## 5. Migrations and seed data
 

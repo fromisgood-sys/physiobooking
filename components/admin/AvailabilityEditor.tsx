@@ -1,226 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fromZonedTime } from "date-fns-tz";
+import { CalendarDays, Clock3, Info, Plus, Trash2, X } from "lucide-react";
+import { CLINIC_TZ, SESSION_MINUTES } from "@/lib/tz";
 
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+/* eslint-disable react-hooks/set-state-in-effect */
 
-interface Rule {
-  weekday: number;
-  start_time: string;
-  end_time: string;
+type Rule = { id?: string; weekday: number; start_time: string; end_time: string };
+type TimeOffRow = { id: string; starts_at: string; ends_at: string; reason: string | null };
+type DayRule = { start: string; end: string };
+type Mode = "weekly" | "timeOff";
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+export function AvailabilityEditor({ physioId, mode = "weekly" }: { physioId: string; mode?: Mode }) {
+  const [rules, setRules] = useState<Record<number, DayRule[]>>({}); const [timeOff, setTimeOff] = useState<TimeOffRow[]>([]); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null); const [success, setSuccess] = useState<string | null>(null); const [formOpen, setFormOpen] = useState(false); const [form, setForm] = useState({ startDate: "", startTime: "08:00", endDate: "", endTime: "17:00", reason: "" });
+
+  function load() { setLoading(true); setError(null); fetch(`/api/admin/availability?physioId=${physioId}`).then((res) => { if (!res.ok) throw new Error(); return res.json(); }).then((data: { rules?: Rule[]; timeOff?: TimeOffRow[] }) => { const next: Record<number, DayRule[]> = {}; for (let day = 0; day < 7; day++) next[day] = []; for (const rule of data.rules ?? []) { (next[rule.weekday] ??= []).push({ start: rule.start_time.slice(0, 5), end: rule.end_time.slice(0, 5) }); } setRules(next); setTimeOff(data.timeOff ?? []); }).catch(() => setError("Couldn&apos;t load availability details.")).finally(() => setLoading(false)); }
+  useEffect(load, [physioId]);
+  function addSlot(day: number) { setRules((current) => ({ ...current, [day]: [...(current[day] ?? []), { start: "08:00", end: "17:00" }] })); }
+  function updateSlot(day: number, index: number, field: "start" | "end", value: string) { setRules((current) => ({ ...current, [day]: (current[day] ?? []).map((slot, slotIndex) => slotIndex === index ? { ...slot, [field]: value } : slot) })); }
+  function removeSlot(day: number, index: number) { setRules((current) => ({ ...current, [day]: (current[day] ?? []).filter((_, slotIndex) => slotIndex !== index) })); }
+  async function saveRules() { setSaving(true); setError(null); setSuccess(null); const payload = Object.entries(rules).flatMap(([weekday, slots]) => slots.map((slot) => ({ weekday: Number(weekday), start_time: slot.start, end_time: slot.end }))); const res = await fetch("/api/admin/availability", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ physioId, rules: payload }) }); const data = await res.json(); setSaving(false); if (!res.ok) setError(data.error ?? "Could not save weekly availability."); else setSuccess("Weekly availability saved."); }
+  async function addTimeOff(event: React.FormEvent) { event.preventDefault(); setError(null); setSuccess(null); if (!form.startDate || !form.endDate) { setError("Choose a start and end date."); return; } const startsAt = fromZonedTime(`${form.startDate}T${form.startTime}:00`, CLINIC_TZ).toISOString(); const endsAt = fromZonedTime(`${form.endDate}T${form.endTime}:00`, CLINIC_TZ).toISOString(); if (new Date(endsAt) <= new Date(startsAt)) { setError("End must be after start."); return; } const res = await fetch("/api/admin/time-off", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ physioId, startsAt, endsAt, reason: form.reason || undefined }) }); const data = await res.json(); if (!res.ok) { setError(data.error ?? "Could not add time off."); return; } setTimeOff((current) => [...current, data.timeOff]); setForm({ startDate: "", startTime: "08:00", endDate: "", endTime: "17:00", reason: "" }); setFormOpen(false); setSuccess("Time off added."); }
+  async function removeTimeOff(id: string) { if (!window.confirm("Remove this blocked period?")) return; const res = await fetch(`/api/admin/time-off?id=${id}`, { method: "DELETE" }); if (!res.ok) { setError("Could not remove time off."); return; } setTimeOff((current) => current.filter((item) => item.id !== id)); setSuccess("Time off removed."); }
+
+  if (loading) return <div className="mt-4 space-y-3"><div className="h-48 animate-pulse rounded-[9px] bg-[#f0f4f5]" /><div className="h-32 animate-pulse rounded-[9px] bg-[#f0f4f5]" /></div>;
+  if (error && !Object.keys(rules).length) return <div className="mt-4 rounded-[9px] border border-[#edc8c5] bg-[#fff5f4] p-6 text-[12px] text-[#b33c38]">{error} <button type="button" onClick={load} className="font-semibold underline">Try again</button></div>;
+
+  return <div className="relative mt-4"><div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]"><div className="min-w-0 space-y-4"><section className="overflow-hidden rounded-[9px] border border-[#e1e8eb] bg-white"><div className="flex items-center justify-between border-b border-[#edf1f2] px-4 py-3"><div><h2 className="text-[13px] font-bold text-[#19364c]">Weekly Availability</h2><p className="mt-1 text-[10px] text-[#81939e]">Set regular weekly availability for appointments.</p></div><button type="button" onClick={() => addSlot(1)} className="flex h-9 items-center gap-1.5 rounded-[6px] border border-[#b9d9d5] px-3 text-[10px] font-semibold text-[#107f7b]"><Plus className="h-3.5 w-3.5" />Add Time Slot</button></div><div className="overflow-x-auto"><table className="w-full min-w-[650px] border-collapse text-left"><thead><tr className="border-b border-[#edf1f2] bg-[#fbfcfc] text-[9px] font-semibold text-[#718596]"><th className="px-4 py-3">Day</th><th className="px-3 py-3">Available</th><th className="px-3 py-3">Start Time</th><th className="px-3 py-3">End Time</th><th className="px-3 py-3">Slot Duration</th><th className="px-3 py-3">Actions</th></tr></thead><tbody>{DAYS.map((day, weekday) => <tr key={day} className="border-b border-[#edf1f2] last:border-0"><td className="px-4 py-3 text-[11px] font-semibold text-[#29485c]">{day}</td><td className="px-3 py-3"><button type="button" aria-label={`${day} availability`} aria-pressed={(rules[weekday] ?? []).length > 0} onClick={() => (rules[weekday] ?? []).length ? setRules((current) => ({ ...current, [weekday]: [] })) : addSlot(weekday)} className={`relative flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${(rules[weekday] ?? []).length ? "bg-[#168884]" : "bg-[#dce4e7]"}`}><span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${(rules[weekday] ?? []).length ? "translate-x-5" : "translate-x-0"}`} /></button></td><td colSpan={(rules[weekday] ?? []).length ? 1 : 3} className="px-3 py-2">{(rules[weekday] ?? []).length ? (rules[weekday] ?? []).map((slot, index) => <div key={`${day}-${index}`} className="mb-1 flex items-center gap-2 last:mb-0"><input type="time" value={slot.start} onChange={(event) => updateSlot(weekday, index, "start", event.target.value)} className="h-8 rounded-[5px] border border-[#dce5e9] px-2 text-[10px] tabular-nums" /><span className="text-[10px] text-[#81939e]">to</span><input type="time" value={slot.end} onChange={(event) => updateSlot(weekday, index, "end", event.target.value)} className="h-8 rounded-[5px] border border-[#dce5e9] px-2 text-[10px] tabular-nums" /><button type="button" aria-label={`Remove ${day} time slot`} onClick={() => removeSlot(weekday, index)} className="p-1 text-[#b33c38]"><Trash2 className="h-3.5 w-3.5" /></button></div>) : <span className="text-[10px] text-[#a0adb5]">Closed</span>}</td>{(rules[weekday] ?? []).length > 0 && <><td className="px-3 py-3 text-[10px] tabular-nums text-[#536c7b]">{SESSION_MINUTES} min</td><td className="px-3 py-3"><button type="button" aria-label={`Add another ${day} time slot`} onClick={() => addSlot(weekday)} className="p-1 text-[#107f7b]"><Plus className="h-3.5 w-3.5" /></button></td></>}</tr>)}</tbody></table></div><div className="m-3 flex items-center gap-2 rounded-[6px] bg-[#f1f6f7] px-3 py-2 text-[10px] text-[#617988]"><Info className="h-3.5 w-3.5 shrink-0 text-[#168884]" />Appointments can only be booked between 08:00 and 17:00. Each session is {SESSION_MINUTES} minutes.</div><div className="flex items-center justify-between border-t border-[#edf1f2] px-4 py-3">{error && <p className="text-[10px] text-[#b33c38]">{error}</p>}{success && <p className="text-[10px] text-[#187b68]">{success}</p>}<button type="button" disabled={saving} onClick={saveRules} className="ml-auto h-9 rounded-[6px] bg-[#107f7b] px-4 text-[10px] font-semibold text-white disabled:opacity-50">{saving ? "Saving..." : "Save Weekly Availability"}</button></div></section></div><section className="min-w-0 rounded-[9px] border border-[#e1e8eb] bg-white"><div className="flex items-center justify-between border-b border-[#edf1f2] px-4 py-3"><div><h2 className="text-[13px] font-bold text-[#19364c]">Time Off / Blocked Periods</h2><p className="mt-1 text-[10px] text-[#81939e]">Non-working periods for this physiotherapist.</p></div><button type="button" onClick={() => setFormOpen(true)} className="flex h-9 items-center gap-1.5 rounded-[6px] border border-[#b9d9d5] px-3 text-[10px] font-semibold text-[#107f7b]"><Plus className="h-3.5 w-3.5" />Add Time Off</button></div>{mode === "timeOff" || timeOff.length > 0 ? <div className="overflow-x-auto"><table className="w-full min-w-[600px] border-collapse text-left"><thead><tr className="border-b border-[#edf1f2] bg-[#fbfcfc] text-[9px] font-semibold text-[#718596]"><th className="px-4 py-3">From</th><th className="px-3 py-3">To</th><th className="px-3 py-3">Reason</th><th className="px-3 py-3">Actions</th></tr></thead><tbody>{timeOff.map((item) => <tr key={item.id} className="border-b border-[#edf1f2] text-[10px] last:border-0"><td className="px-4 py-3 tabular-nums text-[#29485c]">{formatTime(item.starts_at)}</td><td className="px-3 py-3 tabular-nums text-[#29485c]">{formatTime(item.ends_at)}</td><td className="px-3 py-3 text-[#536c7b]">{item.reason ?? "—"}</td><td className="px-3 py-3"><button type="button" aria-label="Remove time off" onClick={() => removeTimeOff(item.id)} className="p-1 text-[#b33c38]"><Trash2 className="h-3.5 w-3.5" /></button></td></tr>)}</tbody></table>{timeOff.length === 0 && <p className="p-6 text-[11px] text-[#81939e]">No time off scheduled.</p>}</div> : <p className="p-6 text-[11px] text-[#81939e]">No time off scheduled.</p>}</section></div>{formOpen && <TimeOffSheet form={form} setForm={setForm} onClose={() => setFormOpen(false)} onSubmit={addTimeOff} />}</div>;
 }
 
-interface TimeOffRow {
-  id: string;
-  starts_at: string;
-  ends_at: string;
-  reason: string | null;
-}
+function formatTime(value: string) { return new Intl.DateTimeFormat("en-GB", { timeZone: CLINIC_TZ, day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value)); }
 
-type DayRule = { start: string; end: string } | null;
+function TimeOffSheet({ form, setForm, onClose, onSubmit }: { form: { startDate: string; startTime: string; endDate: string; endTime: string; reason: string }; setForm: React.Dispatch<React.SetStateAction<{ startDate: string; startTime: string; endDate: string; endTime: string; reason: string }>>; onClose: () => void; onSubmit: (event: React.FormEvent) => void }) { return <><button type="button" aria-label="Close add time off" onClick={onClose} className="fixed inset-0 z-40 cursor-default bg-[#19364c]/20" /><aside className="fixed inset-y-0 right-0 z-50 w-full max-w-[360px] overflow-y-auto border-l border-[#dce5e9] bg-white p-5 shadow-[-4px_0_18px_rgba(25,53,70,0.1)]"><div className="flex items-start justify-between"><div><h2 className="text-[16px] font-bold text-[#19364c]">Add Time Off</h2><p className="mt-1 text-[10px] text-[#81939e]">Block out a specific period.</p></div><button type="button" aria-label="Close add time off" onClick={onClose} className="p-1 text-[#617988]"><X className="h-5 w-5" /></button></div><form onSubmit={onSubmit} className="mt-6 space-y-4"><DateField label="From" value={form.startDate} onChange={(value) => setForm((current) => ({ ...current, startDate: value }))} /><TimeField label="Start time" value={form.startTime} onChange={(value) => setForm((current) => ({ ...current, startTime: value }))} /><DateField label="To" value={form.endDate} onChange={(value) => setForm((current) => ({ ...current, endDate: value }))} /><TimeField label="End time" value={form.endTime} onChange={(value) => setForm((current) => ({ ...current, endTime: value }))} /><label className="block text-[10px] font-semibold text-[#50697b]">Reason<input required value={form.reason} onChange={(event) => setForm((current) => ({ ...current, reason: event.target.value }))} className="mt-1 h-10 w-full rounded-[7px] border border-[#dce5e9] px-3 text-[11px] outline-none focus:border-[#168884]" /></label><div className="rounded-[7px] bg-[#f1f6f7] p-3 text-[10px] text-[#617988]"><Info className="mr-1 inline h-3.5 w-3.5 text-[#168884]" />This period will be unavailable for booking. Existing appointments are not changed.</div><div className="flex gap-2 pt-8"><button type="button" onClick={onClose} className="h-10 flex-1 rounded-[7px] border border-[#8bbfba] text-[11px] font-semibold text-[#107f7b]">Cancel</button><button type="submit" className="h-10 flex-1 rounded-[7px] bg-[#107f7b] text-[11px] font-semibold text-white">Add Time Off</button></div></form></aside></>; }
+function DateField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label className="block text-[10px] font-semibold text-[#50697b]">{label}<span className="mt-1 flex items-center gap-2 rounded-[7px] border border-[#dce5e9] px-3"><CalendarDays className="h-3.5 w-3.5 text-[#81939e]" /><input required type="date" value={value} onChange={(event) => onChange(event.target.value)} className="h-9 min-w-0 flex-1 text-[11px] outline-none" /></span></label>; }
+function TimeField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label className="block text-[10px] font-semibold text-[#50697b]">{label}<span className="mt-1 flex items-center gap-2 rounded-[7px] border border-[#dce5e9] px-3"><Clock3 className="h-3.5 w-3.5 text-[#81939e]" /><input required type="time" value={value} onChange={(event) => onChange(event.target.value)} className="h-9 flex-1 text-[11px] outline-none" /></span></label>; }
 
-export function AvailabilityEditor({ physioId }: { physioId: string }) {
-  const [rules, setRules] = useState<Record<number, DayRule>>({});
-  const [timeOff, setTimeOff] = useState<TimeOffRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [newTimeOff, setNewTimeOff] = useState({ start: "", end: "", reason: "" });
-
-  useEffect(() => {
-    setLoading(true);
-    fetch(`/api/admin/availability?physioId=${physioId}`)
-      .then((res) => res.json())
-      .then((data: { rules: Rule[]; timeOff: TimeOffRow[] }) => {
-        const map: Record<number, DayRule> = {};
-        for (let d = 0; d < 7; d++) map[d] = null;
-        for (const r of data.rules ?? []) {
-          map[r.weekday] = { start: r.start_time.slice(0, 5), end: r.end_time.slice(0, 5) };
-        }
-        setRules(map);
-        setTimeOff(data.timeOff ?? []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [physioId]);
-
-  async function saveRules() {
-    setSaving(true);
-    setError(null);
-
-    const payload = Object.entries(rules)
-      .filter((entry): entry is [string, { start: string; end: string }] => Boolean(entry[1]))
-      .map(([weekday, v]) => ({ weekday: Number(weekday), start_time: v.start, end_time: v.end }));
-
-    const res = await fetch("/api/admin/availability", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ physioId, rules: payload }),
-    });
-    const data = await res.json();
-    setSaving(false);
-    if (!res.ok) setError(data.error ?? "Could not save.");
-  }
-
-  async function addTimeOff() {
-    if (!newTimeOff.start || !newTimeOff.end) return;
-
-    const res = await fetch("/api/admin/time-off", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        physioId,
-        startsAt: new Date(newTimeOff.start).toISOString(),
-        endsAt: new Date(newTimeOff.end).toISOString(),
-        reason: newTimeOff.reason || undefined,
-      }),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      setTimeOff((t) => [...t, data.timeOff]);
-      setNewTimeOff({ start: "", end: "", reason: "" });
-    }
-  }
-
-  async function removeTimeOff(id: string) {
-    await fetch(`/api/admin/time-off?id=${id}`, { method: "DELETE" });
-    setTimeOff((t) => t.filter((r) => r.id !== id));
-  }
-
-  if (loading) return <p className="mt-8 text-[15px] text-ink-soft">Loading&hellip;</p>;
-
-  return (
-    <div className="mt-8 flex flex-col gap-10">
-      <div>
-        <h2 className="text-[18px] font-semibold text-ink">Weekly availability</h2>
-        <div className="mt-4 flex flex-col gap-3">
-          {WEEKDAYS.map((label, weekday) => {
-            const rule = rules[weekday];
-            return (
-              <div key={weekday} className="flex items-center gap-4">
-                <label className="flex w-32 items-center gap-2 text-[15px] text-ink">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(rule)}
-                    onChange={(e) =>
-                      setRules((r) => ({
-                        ...r,
-                        [weekday]: e.target.checked ? { start: "08:00", end: "17:00" } : null,
-                      }))
-                    }
-                  />
-                  {label}
-                </label>
-                {rule && (
-                  <>
-                    <input
-                      type="time"
-                      value={rule.start}
-                      onChange={(e) =>
-                        setRules((r) => ({ ...r, [weekday]: { ...rule, start: e.target.value } }))
-                      }
-                      className="h-10 rounded-btn border border-line-strong bg-paper px-2 text-[15px] tabular-nums text-ink"
-                    />
-                    <span className="text-ink-soft">to</span>
-                    <input
-                      type="time"
-                      value={rule.end}
-                      onChange={(e) =>
-                        setRules((r) => ({ ...r, [weekday]: { ...rule, end: e.target.value } }))
-                      }
-                      className="h-10 rounded-btn border border-line-strong bg-paper px-2 text-[15px] tabular-nums text-ink"
-                    />
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {error && <p className="mt-3 text-[15px] text-state-danger">{error}</p>}
-
-        <button
-          type="button"
-          disabled={saving}
-          onClick={saveRules}
-          className="mt-4 flex h-11 items-center justify-center rounded-btn bg-azure px-6 text-[15px] font-medium text-white transition-colors duration-150 ease-out hover:bg-azure-hover disabled:opacity-50"
-        >
-          {saving ? "Saving…" : "Save weekly availability"}
-        </button>
-      </div>
-
-      <div>
-        <h2 className="text-[18px] font-semibold text-ink">Time off</h2>
-
-        <div className="mt-4 flex flex-col gap-3">
-          {timeOff.map((t) => (
-            <div
-              key={t.id}
-              className="flex items-center justify-between rounded-card border border-line bg-paper p-4"
-            >
-              <p className="text-[15px] text-ink">
-                {new Date(t.starts_at).toLocaleString()} &ndash;{" "}
-                {new Date(t.ends_at).toLocaleString()}
-                {t.reason && <span className="text-ink-soft"> &middot; {t.reason}</span>}
-              </p>
-              <button
-                type="button"
-                onClick={() => removeTimeOff(t.id)}
-                className="text-[15px] font-medium text-state-danger hover:underline"
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-          {timeOff.length === 0 && (
-            <p className="text-[15px] text-ink-soft">No time off scheduled.</p>
-          )}
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-muted">
-              Start
-            </label>
-            <input
-              type="datetime-local"
-              value={newTimeOff.start}
-              onChange={(e) => setNewTimeOff({ ...newTimeOff, start: e.target.value })}
-              className="h-10 rounded-btn border border-line-strong bg-paper px-3 text-[15px] text-ink"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-muted">
-              End
-            </label>
-            <input
-              type="datetime-local"
-              value={newTimeOff.end}
-              onChange={(e) => setNewTimeOff({ ...newTimeOff, end: e.target.value })}
-              className="h-10 rounded-btn border border-line-strong bg-paper px-3 text-[15px] text-ink"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-muted">
-              Reason
-            </label>
-            <input
-              type="text"
-              value={newTimeOff.reason}
-              onChange={(e) => setNewTimeOff({ ...newTimeOff, reason: e.target.value })}
-              className="h-10 rounded-btn border border-line-strong bg-paper px-3 text-[15px] text-ink"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={addTimeOff}
-            className="flex h-10 items-center justify-center rounded-btn bg-azure px-4 text-[15px] font-medium text-white transition-colors duration-150 ease-out hover:bg-azure-hover"
-          >
-            Add
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+/* eslint-enable react-hooks/set-state-in-effect */

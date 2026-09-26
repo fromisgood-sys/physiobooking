@@ -72,24 +72,24 @@ export function MonthCalendar({
           aria-label="Previous month"
           disabled={atCurrentMonth}
           onClick={() => shiftMonth(-1)}
-          className="flex h-11 w-11 items-center justify-center rounded-btn text-ink-soft transition-colors duration-150 ease-out hover:bg-paper-sunk disabled:opacity-30 disabled:hover:bg-transparent"
+          className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#e2e9ed] text-[#456174] transition-colors duration-150 ease-out hover:bg-[#f1f8f8] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#76c6c6]"
         >
           <ChevronLeft className="h-5 w-5" aria-hidden="true" />
         </button>
-        <p className="text-[22px] font-semibold text-ink" aria-live="polite">
+        <p className="text-[15px] font-bold text-[#18344b]" aria-live="polite">
           {monthLabel}
         </p>
         <button
           type="button"
           aria-label="Next month"
           onClick={() => shiftMonth(1)}
-          className="flex h-11 w-11 items-center justify-center rounded-btn text-ink-soft transition-colors duration-150 ease-out hover:bg-paper-sunk"
+          className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#e2e9ed] text-[#456174] transition-colors duration-150 ease-out hover:bg-[#f1f8f8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#76c6c6]"
         >
           <ChevronRight className="h-5 w-5" aria-hidden="true" />
         </button>
       </div>
 
-      <div className="mt-3 grid grid-cols-7 text-center text-[16px] font-medium text-ink-soft">
+      <div className="mt-2 grid grid-cols-7 text-center text-[10px] font-semibold uppercase tracking-[0.04em] text-[#748697]">
         {HEADINGS.map((h) => (
           <span key={h} className="py-2">
             {h}
@@ -97,14 +97,14 @@ export function MonthCalendar({
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-y-1" role="listbox" aria-label="Choose a date">
+      <div className="grid grid-cols-7 gap-x-1 gap-y-0.5" role="listbox" aria-label="Choose an appointment date">
         {cells.map((cell) => {
           if (!cell.inMonth) {
             return (
               <span
                 key={cell.date}
                 aria-hidden="true"
-                className="mx-auto flex h-12 w-12 items-center justify-center text-[18px] tabular-nums text-ink-muted/35"
+                className="mx-auto flex aspect-square w-full max-w-10 items-center justify-center text-[12px] tabular-nums text-[#b3bec7]"
               >
                 {cell.day}
               </span>
@@ -113,6 +113,12 @@ export function MonthCalendar({
           const bookable =
             cell.date >= todayLabel && availableWeekdays.includes(weekdayOfDateLabel(cell.date));
           const selected = cell.date === selectedDate;
+          const accessibleDate = new Date(`${cell.date}T12:00:00`).toLocaleDateString("en-GB", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          });
 
           return (
             <button
@@ -120,18 +126,19 @@ export function MonthCalendar({
               type="button"
               role="option"
               aria-selected={selected}
-              aria-disabled={!bookable}
+              aria-label={`${accessibleDate}, ${selected ? "selected" : bookable ? "scheduled clinic day" : "unavailable"}`}
               disabled={!bookable}
               onClick={() => onSelect(cell.date)}
-              className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full text-[18px] tabular-nums transition-colors duration-150 ease-out ${
+              className={`relative mx-auto flex aspect-square w-full max-w-10 flex-col items-center justify-center rounded-full text-[12px] tabular-nums transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#76c6c6] focus-visible:ring-offset-1 ${
                 selected
-                  ? "bg-azure font-semibold text-white"
+                  ? "bg-[#087f83] font-semibold text-white"
                   : bookable
-                    ? "font-medium text-ink hover:bg-azure-soft"
-                    : "text-ink-muted/35"
+                    ? "font-medium text-[#243f54] hover:bg-[#eaf6f5]"
+                    : "cursor-not-allowed text-[#b4bec6]"
               }`}
             >
               {cell.day}
+              {bookable && <span aria-hidden="true" className={`absolute bottom-[3px] h-1 w-1 rounded-full ${selected ? "bg-white" : "bg-[#15979a]"}`} />}
             </button>
           );
         })}

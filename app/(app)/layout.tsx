@@ -8,12 +8,12 @@ function LogoMark() {
     <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
       <path
         d="M8 29V6.5C8 5.7 8.7 5 9.5 5H17a8 8 0 0 1 0 16h-4"
-        stroke="var(--azure)"
+        stroke="#4B7BF5"
         strokeWidth="5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="24.5" cy="5" r="2.5" fill="var(--lime)" />
+      <circle cx="24.5" cy="5" r="2.5" fill="#D6F24B" />
     </svg>
   );
 }
@@ -29,13 +29,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const initial = name.charAt(0).toUpperCase();
 
   return (
-    <div className="flex flex-1 flex-col bg-paper-tint">
-      <header className="border-b border-line bg-paper">
-        <div className="mx-auto flex w-full max-w-[1200px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
+    <div className="min-h-screen bg-[#edf3fb]">
+      <header className="border-b border-[#dfe7f3] bg-[#edf3fb]">
+        <div className="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Link href="/book" className="flex items-center gap-2.5" aria-label="Physio Booking home">
-            <LogoMark />
-            <span className="text-[22px] tracking-[-0.02em] text-ink">
-              <span className="font-semibold text-azure">Physio</span>Booking
+            <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-[#4B7BF5]">
+              <LogoMark />
+            </span>
+            <span className="text-[15px] font-bold tracking-[-0.02em] text-[#0f172a] sm:text-[22px]">
+              <span className="font-semibold text-[#4B7BF5]">Physio</span>Booking
             </span>
           </Link>
 
@@ -62,7 +64,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 )}
                 <ChevronDown className="h-4 w-4 text-ink-soft" aria-hidden="true" />
               </summary>
-              <div className="absolute right-0 top-12 z-20 w-56 rounded-card border border-line bg-paper p-2">
+              <div className="absolute right-0 top-12 z-20 w-56 rounded-card border border-line bg-paper p-2 shadow-[var(--shadow-float)]">
                 <p className="truncate px-3 py-2 text-[13px] text-ink-muted">{name}</p>
                 <Link
                   href="/book"
@@ -99,7 +101,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
 
-      {children}
+      <div className="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6">{children}</div>
     </div>
   );
 }

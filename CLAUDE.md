@@ -10,7 +10,7 @@ Responsive booking app for a physiotherapy clinic. Patients sign in with Google,
 
 Full requirements live in `physio-booking-app-spec.md`. Read it once at the start of a session, not repeatedly.
 
-**Stack:** Next.js (App Router, TypeScript) · Tailwind + shadcn/ui · Supabase (Postgres, RLS, Auth) · Google Calendar API v3 · Formspree for email · `exceljs` for export · `date-fns` / `date-fns-tz` · Vercel
+**Stack:** Next.js (App Router, TypeScript) · Tailwind + shadcn/ui · Supabase (Postgres, RLS, Auth) · Google Calendar API v3 · Gmail SMTP via Nodemailer for email · `exceljs` for export · `date-fns` / `date-fns-tz` · Vercel
 
 ---
 
@@ -117,7 +117,7 @@ Work through these in sequence. One at a time. Do not jump ahead.
 6. Physiotherapist chooser screen
 7. Date and slot picker
 8. Booking creation + confirmation screen
-9. Formspree notifications
+9. Gmail SMTP notifications to patients and the configured reception inbox
 10. Google Calendar create / update / delete
 11. `/appointments` — history, reschedule, cancel
 12. Admin dashboard + appointments table

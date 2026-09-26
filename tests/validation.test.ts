@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   createAppointmentSchema,
+  rescheduleWithDetailsSchema,
+  updateBookingDetailsSchema,
   isPastInstant,
   isOnBookableGrid,
 } from "@/lib/validation";
@@ -19,8 +21,12 @@ describe("createAppointmentSchema", () => {
   });
 
   it("accepts a payload with no reason given (optional)", () => {
-    const { reasonForVisit: _reasonForVisit, ...rest } = valid;
-    expect(createAppointmentSchema.safeParse(rest).success).toBe(true);
+    const withoutReason = {
+      physioId: valid.physioId,
+      startUtc: valid.startUtc,
+      phone: valid.phone,
+    };
+    expect(createAppointmentSchema.safeParse(withoutReason).success).toBe(true);
   });
 
   it("rejects a non-uuid physioId", () => {
@@ -37,6 +43,49 @@ describe("createAppointmentSchema", () => {
 
   it("rejects a too-short phone number", () => {
     expect(createAppointmentSchema.safeParse({ ...valid, phone: "123" }).success).toBe(false);
+  });
+});
+
+describe("updateBookingDetailsSchema", () => {
+  it("accepts a valid phone number and optional booking comments", () => {
+    expect(
+      updateBookingDetailsSchema.safeParse({
+        phone: "+264 81 234 5678",
+        reasonForVisit: "Lower back pain",
+      }).success
+    ).toBe(true);
+  });
+
+  it("accepts empty comments", () => {
+    expect(updateBookingDetailsSchema.safeParse({ phone: "+264811234567", reasonForVisit: "" }).success).toBe(true);
+  });
+
+  it("rejects invalid phone numbers and comments over 500 characters", () => {
+    expect(updateBookingDetailsSchema.safeParse({ phone: "123", reasonForVisit: "" }).success).toBe(false);
+    expect(
+      updateBookingDetailsSchema.safeParse({ phone: "+264811234567", reasonForVisit: "x".repeat(501) }).success
+    ).toBe(false);
+  });
+});
+
+describe("rescheduleWithDetailsSchema", () => {
+  const valid = {
+    startUtc: "2026-10-20T08:00:00.000Z",
+    phone: "+264 81 234 5678",
+    reasonForVisit: "Please focus on my shoulder mobility.",
+  };
+
+  it("accepts a valid reschedule and normalizes the cellphone number", () => {
+    expect(rescheduleWithDetailsSchema.parse(valid)).toEqual({
+      ...valid,
+      phone: "+264812345678",
+    });
+  });
+
+  it("rejects invalid phone numbers, timestamps, and comments over 500 characters", () => {
+    expect(rescheduleWithDetailsSchema.safeParse({ ...valid, phone: "Call me" }).success).toBe(false);
+    expect(rescheduleWithDetailsSchema.safeParse({ ...valid, startUtc: "tomorrow" }).success).toBe(false);
+    expect(rescheduleWithDetailsSchema.safeParse({ ...valid, reasonForVisit: "x".repeat(501) }).success).toBe(false);
   });
 });
 

@@ -25,6 +25,11 @@ export interface ExistingAppointment {
   ends_at: string; // ISO UTC
 }
 
+export interface PatientAppointment {
+  starts_at: string;
+  ends_at: string;
+}
+
 export interface Slot {
   /** UTC ISO instant the session starts */
   startUtc: string;
@@ -61,6 +66,22 @@ function minutesToTime(totalMinutes: number): string {
 
 function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
   return aStart < bEnd && aEnd > bStart;
+}
+
+export function excludePatientConflicts<T extends Slot>(
+  slots: T[],
+  appointments: PatientAppointment[]
+): T[] {
+  const busy = appointments.map((appointment) => ({
+    start: new Date(appointment.starts_at),
+    end: new Date(appointment.ends_at),
+  }));
+
+  return slots.filter((slot) => {
+    const start = new Date(slot.startUtc);
+    const end = new Date(slot.endUtc);
+    return !busy.some((appointment) => overlaps(start, end, appointment.start, appointment.end));
+  });
 }
 
 /**
@@ -106,7 +127,9 @@ export function generateSlots(params: GenerateSlotsParams): Slot[] {
     // Clamp every rule to the hard clinic window (08:00–17:00), regardless
     // of what the rule itself says — this is a non-negotiable domain rule,
     // not just a DB constraint.
-    const ruleStart = Math.max(timeToMinutes(rule.start_time), openMin);
+    const earliestRuleStart = Math.max(timeToMinutes(rule.start_time), openMin);
+    const ruleStart =
+      openMin + Math.ceil((earliestRuleStart - openMin) / SESSION_MINUTES) * SESSION_MINUTES;
     const ruleEnd = Math.min(timeToMinutes(rule.end_time), closeMin);
 
     for (let t = ruleStart; t + SESSION_MINUTES <= ruleEnd; t += SESSION_MINUTES) {

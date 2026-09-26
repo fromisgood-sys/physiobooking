@@ -3,13 +3,7 @@
 import { useEffect, useState } from "react";
 import { toZonedTime } from "date-fns-tz";
 import { format } from "date-fns";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DayStrip } from "@/components/booking/DayStrip";
 import { SlotGrid } from "@/components/booking/SlotGrid";
 import type { Slot } from "@/lib/slots";
